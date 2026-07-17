@@ -1,37 +1,46 @@
 # AiPro
 
-Safe-by-default automated crypto trading MVP.
+API-free, safety-first cryptocurrency trading core.
 
-## Execution flow
+## Architecture
 
 `run.py -> telegram.py -> main.py -> TradingApplication`
 
-## Included
+## Implemented
 
 - PAPER mode by default
-- Explicit double guard for LIVE mode
-- Deterministic market-data adapter for offline smoke tests
-- Baseline momentum strategy
-- Position sizing and daily-loss HALT latch
-- Paper broker
-- SQLite event log
-- File and console logging
-- Unit tests
+- Explicit LIVE dual lock
+- Position sizing and daily loss HALT
+- Fee and slippage accounting
+- Duplicate order TTL guard
+- Persistent SQLite event and state storage
+- Restart recovery for cash, positions, controller mode, and baseline
+- RUNNING / PAUSED / HALTED controller
+- Offline command processor: `/status`, `/pause`, `/resume`, `/halt`, `/go`
+- KST daily session rollover helper
+- Deterministic backtest engine and performance metrics
+- Exchange protocol with a fake adapter for integration tests
+- GitHub Actions compilation and pytest checks
 
-## Run
+## Safety boundary
 
-```bash
-python run.py
-```
+No exchange or Telegram secret is stored in the repository. Real network adapters are connected only after all API-free tests pass and credentials are supplied through environment variables or GitHub/VPS secrets.
 
 ## Test
 
 ```bash
+python -m pip install pytest
+python -m compileall -q .
 python -m pytest -q
 ```
 
-## Safety
+## Required credentials for the final integration stage
 
-This repository does not send real orders. A real Upbit adapter, authenticated API client,
-secret management, reconciliation, idempotency, retry policy, and paper-trading validation
-must be completed before LIVE mode is considered.
+```env
+UPBIT_ACCESS_KEY=
+UPBIT_SECRET_KEY=
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+```
+
+Never commit real values to Git.
