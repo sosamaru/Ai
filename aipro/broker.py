@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass(slots=True)
@@ -71,3 +72,33 @@ class PaperBroker:
             pos.quantity * prices.get(symbol, pos.average_price)
             for symbol, pos in self.positions.items()
         )
+
+    def snapshot(self) -> dict[str, Any]:
+        return {
+            "cash_krw": self.cash_krw,
+            "fee_rate": self.fee_rate,
+            "slippage_bps": self.slippage_bps,
+            "positions": {
+                symbol: {
+                    "quantity": position.quantity,
+                    "average_price": position.average_price,
+                }
+                for symbol, position in self.positions.items()
+            },
+        }
+
+    @classmethod
+    def restore(cls, state: dict[str, Any]) -> "PaperBroker":
+        broker = cls(
+            cash_krw=float(state["cash_krw"]),
+            fee_rate=float(state.get("fee_rate", 0.0005)),
+            slippage_bps=float(state.get("slippage_bps", 10.0)),
+        )
+        broker.positions = {
+            symbol: Position(
+                quantity=float(payload["quantity"]),
+                average_price=float(payload["average_price"]),
+            )
+            for symbol, payload in state.get("positions", {}).items()
+        }
+        return broker
