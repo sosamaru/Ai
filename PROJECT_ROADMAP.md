@@ -11,7 +11,7 @@ Last updated: 2026-07-17
 
 ## Current status
 
-Estimated overall completion: **28%**
+Estimated overall completion: **33%**
 
 ### Completed
 
@@ -23,7 +23,10 @@ Estimated overall completion: **28%**
 - [x] Position sizing and daily-loss HALT latch
 - [x] Paper broker
 - [x] SQLite event storage
-- [x] Initial unit tests
+- [x] SQLite runtime-state storage with atomic upsert
+- [x] Persistent PAPER cash and position recovery after restart
+- [x] Persistent session baseline and HALTED latch
+- [x] Initial restart and serialization tests
 - [x] Safe PAPER default
 
 ### Incomplete or insufficient
@@ -32,7 +35,7 @@ Estimated overall completion: **28%**
 - [ ] Exchange reconciliation for balances, orders, and fills
 - [ ] Idempotent order submission and duplicate-order protection
 - [ ] Retry, timeout, circuit-breaker, and rate-limit policies
-- [ ] Persistent portfolio and session baseline recovery after restart
+- [ ] Daily KST baseline rollover and historical session records
 - [ ] Telegram authentication, command authorization, and confirmation workflow
 - [ ] Backtesting engine with fees, slippage, latency, and walk-forward validation
 - [ ] Long-running paper-trading soak test and daily report
@@ -62,14 +65,15 @@ Exit criteria:
 Target completion: 45%
 
 - [ ] Define broker, market-data, strategy, risk, and storage protocols
-- [ ] Add persistent portfolio state and restart recovery
+- [x] Add persistent portfolio state and restart recovery
 - [ ] Add deterministic clock abstraction
 - [ ] Add order lifecycle state machine
 - [ ] Add idempotency keys and order deduplication
 - [ ] Add structured domain events
 - [ ] Add fee/slippage-aware PnL accounting
 - [ ] Add daily KST baseline reset tests
-- [ ] Add HALTED state persistence and `/go`-only recovery tests
+- [x] Add HALTED state persistence
+- [ ] Add `/go`-only HALTED recovery tests
 
 Release gate: no uncaught exception during a 7-day simulated soak test.
 
@@ -144,16 +148,24 @@ Target completion: 100%
 ## Current risks
 
 1. **Financial risk:** the current repository must not place real orders.
-2. **State risk:** restart recovery and exchange reconciliation are not complete.
+2. **Order risk:** there is no durable order lifecycle or duplicate-order protection yet.
 3. **Validation risk:** a baseline strategy is not evidence of durable profitability.
 4. **Security risk:** production secret handling and Telegram authorization are incomplete.
 5. **Operational risk:** monitoring, backup, and deployment recovery are incomplete.
 
+## Remaining limitations of restart recovery
+
+- State persistence currently models immediate PAPER fills rather than pending orders.
+- A corrupt or unsupported state version fails closed but has no automated backup restore yet.
+- Daily baseline rollover is not implemented.
+- There is no migration framework beyond the explicit state-version check.
+- Exchange reconciliation cannot be performed until the read-only Upbit adapter exists.
+
 ## Next three priorities
 
-1. Formalize interfaces and implement persistent restart-safe paper portfolio/order state.
-2. Build the cost-aware replay/backtesting engine and validation report.
-3. Implement read-only Upbit integration with reconciliation before any order endpoint.
+1. Implement a typed order lifecycle with idempotency keys and duplicate-order rejection.
+2. Add deterministic KST clock/session rollover and fee/slippage-aware accounting.
+3. Build the cost-aware replay/backtesting engine before exchange order integration.
 
 ## Definition of done for every feature
 
