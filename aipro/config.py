@@ -5,6 +5,15 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+def _parse_chat_ids(raw: str) -> frozenset[int]:
+    if not raw.strip():
+        return frozenset()
+    try:
+        return frozenset(int(item.strip()) for item in raw.split(",") if item.strip())
+    except ValueError as exc:
+        raise ValueError("AIPRO_TELEGRAM_ALLOWED_CHAT_IDS must contain integers") from exc
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     mode: str = "PAPER"
@@ -18,6 +27,9 @@ class Settings:
     log_level: str = "INFO"
     live_confirm: str = "NO"
     enable_live_trading: bool = False
+    telegram_bot_token: str = ""
+    telegram_allowed_chat_ids: frozenset[int] = frozenset()
+    telegram_poll_timeout_sec: int = 25
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -33,6 +45,13 @@ class Settings:
             log_level=os.getenv("AIPRO_LOG_LEVEL", "INFO").upper(),
             live_confirm=os.getenv("AIPRO_LIVE_CONFIRM", "NO").upper(),
             enable_live_trading=os.getenv("ENABLE_LIVE_TRADING", "0") == "1",
+            telegram_bot_token=os.getenv("AIPRO_TELEGRAM_BOT_TOKEN", "").strip(),
+            telegram_allowed_chat_ids=_parse_chat_ids(
+                os.getenv("AIPRO_TELEGRAM_ALLOWED_CHAT_IDS", "")
+            ),
+            telegram_poll_timeout_sec=int(
+                os.getenv("AIPRO_TELEGRAM_POLL_TIMEOUT_SEC", "25")
+            ),
         )
         settings.validate()
         return settings
@@ -46,5 +65,15 @@ class Settings:
             raise ValueError("max_position_pct must be in (0, 1]")
         if self.daily_loss_limit_pct >= 0:
             raise ValueError("daily_loss_limit_pct must be negative")
-        if self.mode == "LIVE" and not (self.live_confirm == "YES" and self.enable_live_trading):
-            raise RuntimeError("LIVE blocked: set AIPRO_LIVE_CONFIRM=YES and ENABLE_LIVE_TRADING=1")
+        if not 1 <= self.telegram_poll_timeout_sec <= 50:
+            raise ValueError("telegram_poll_timeout_sec must be between 1 and 50")
+        if self.telegram_bot_token and not self.telegram_allowed_chat_ids:
+            raise RuntimeError(
+                "Telegram blocked: configure AIPRO_TELEGRAM_ALLOWED_CHAT_IDS"
+            )
+        if self.mode == "LIVE" and not (
+            self.live_confirm == "YES" and self.enable_live_trading
+        ):
+            raise RuntimeError(
+                "LIVE blocked: set AIPRO_LIVE_CONFIRM=YES and ENABLE_LIVE_TRADING=1"
+            )
