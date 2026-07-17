@@ -11,7 +11,18 @@ class RiskManager:
             self.halted = True
         return self.halted
 
-    def position_size(self, cash_krw: float, max_position_pct: float, min_order_krw: int) -> int:
+    def halt(self) -> None:
+        self.halted = True
+
+    def resume(self) -> None:
+        self.halted = False
+
+    def position_size(
+        self,
+        cash_krw: float,
+        max_position_pct: float,
+        min_order_krw: int,
+    ) -> int:
         if self.halted:
             return 0
         amount = int(cash_krw * max_position_pct)
