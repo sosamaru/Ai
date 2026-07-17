@@ -72,6 +72,23 @@ class TradingApplication:
     def _persist_halted(self, halted: bool) -> None:
         self.storage.set_state("halted", "1" if halted else "0")
 
+    def status(self) -> dict[str, object]:
+        snapshots = self.market.snapshots()
+        prices = {item.symbol: item.price for item in snapshots}
+        equity = self.broker.equity(prices)
+        self._sync_daily_baseline(equity)
+        daily_return_pct = (equity / self.baseline_equity - 1) * 100
+        return {
+            "mode": self.settings.mode,
+            "halted": self.risk.halted,
+            "trading_date": self._today(),
+            "cash_krw": round(self.broker.cash_krw, 2),
+            "equity_krw": round(equity, 2),
+            "baseline_equity_krw": round(self.baseline_equity, 2),
+            "daily_return_pct": round(daily_return_pct, 4),
+            "positions": len(self.broker.positions),
+        }
+
     def resume(self) -> None:
         snapshots = self.market.snapshots()
         prices = {item.symbol: item.price for item in snapshots}
