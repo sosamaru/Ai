@@ -10,6 +10,7 @@ from aipro.broker import PaperBroker
 from aipro.config import Settings
 from aipro.market import DemoMarketData
 from aipro.models import Signal
+from aipro.reconciliation import ReconciliationReport, reconcile_paper_account
 from aipro.risk import RiskManager
 from aipro.storage import Storage
 from aipro.strategy import MomentumStrategy
@@ -117,12 +118,38 @@ class TradingApplication:
             raise ValueError("symbol is required for order id")
         return f"paper:{cycle_id}:{side.lower()}:{normalized_symbol}"
 
+    def reconcile(self) -> ReconciliationReport:
+        return reconcile_paper_account(
+            self.broker,
+            float(self.settings.initial_cash_krw),
+        )
+
+    def reconciliation_status(self) -> dict[str, object]:
+        report = self.reconcile()
+        return {
+            "consistent": report.is_consistent,
+            "issue_count": len(report.issues),
+            "expected_cash_krw": round(report.expected_cash_krw, 6),
+            "actual_cash_krw": round(report.actual_cash_krw, 6),
+            "issues": [
+                {
+                    "code": issue.code,
+                    "message": issue.message,
+                    "symbol": issue.symbol,
+                    "expected": issue.expected,
+                    "actual": issue.actual,
+                }
+                for issue in report.issues
+            ],
+        }
+
     def status(self) -> dict[str, object]:
         snapshots = self.market.snapshots()
         prices = {item.symbol: item.price for item in snapshots}
         equity = self.broker.equity(prices)
         self._sync_daily_baseline(equity)
         daily_return_pct = (equity / self.baseline_equity - 1) * 100
+        reconciliation = self.reconcile()
         return {
             "mode": self.settings.mode,
             "halted": self.risk.halted,
@@ -134,6 +161,8 @@ class TradingApplication:
             "positions": len(self.broker.positions),
             "active_cycle_id": self.storage.get_state(ACTIVE_CYCLE_STATE_KEY) or None,
             "cycle_sequence": self._load_cycle_sequence(),
+            "reconciliation_ok": reconciliation.is_consistent,
+            "reconciliation_issue_count": len(reconciliation.issues),
         }
 
     def resume(self) -> None:
