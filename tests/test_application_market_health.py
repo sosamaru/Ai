@@ -23,7 +23,7 @@ def test_status_exposes_market_health(tmp_path) -> None:
 
 def test_market_failure_aborts_active_cycle(tmp_path) -> None:
     app = CryptoTradingApplication(Settings(db_path=tmp_path / "aipro.db"))
-    app.market.delegate = FailingProvider()
+    app.market = FailingProvider()
 
     with pytest.raises(MarketDataHealthError, match="provider unavailable"):
         app.run_once()
