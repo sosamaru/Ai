@@ -35,7 +35,7 @@ Each asset domain must pass this sequence independently. Capital, broker state, 
 
 ## Current status
 
-Overall completion: **64%**
+Overall completion: **67%**
 
 ### Completed
 
@@ -74,13 +74,14 @@ Overall completion: **64%**
 - [x] Disabled-by-default US-stock domain with isolated KRW 200,000 capital policy
 - [x] Domain tests preventing disabled assets from enabling live order submission
 - [x] Documented independent crypto and US-stock daily-baseline policy
+- [x] Separate persisted `crypto.*` and `us_stocks.*` baseline namespaces
+- [x] Backward-compatible migration from legacy crypto baseline keys
+- [x] Cross-domain regression tests preventing baseline overwrite or rebase
+- [x] Successful GitHub Actions validation for independent baseline persistence
 
 ### In progress
 
 - [ ] Migrate legacy crypto runtime modules from `aipro/` into `aipro/crypto/` without breaking persisted state
-- [ ] Implement separate persisted baseline namespaces and reset logic for crypto and US stocks
-- [ ] Add regression tests proving one domain cannot overwrite or rebase the other domain's baseline
-- [ ] Confirm GitHub Actions for deterministic backtesting and domain separation
 - [ ] CSV historical-data loader and schema validation
 - [ ] Paper-trading readiness criteria and validation report
 - [ ] Completed-order retention and archival policy
@@ -98,7 +99,7 @@ Overall completion: **64%**
 - [ ] Select and implement a read-only US-stock market-data adapter
 - [ ] Select a supported broker and build PAPER adapter
 - [ ] US momentum/gap scanner and liquidity filters
-- [ ] Separate USD cash, positions, orders, database namespace, approval flow, and daily baseline
+- [ ] Separate USD cash, positions, orders, database namespace, approval flow, and runtime risk controls
 - [ ] Split US-stock capital between the KRW 200,000 momentum allocation and the remaining general-securities allocation
 - [ ] US-market-hours and holiday calendar handling
 - [ ] US-stock-specific backtesting and paper-readiness gate
@@ -114,19 +115,22 @@ Overall completion: **64%**
 
 ## Current behavior
 
-1. KST date, daily baseline, HALTED state, account state, orders, and active cycle survive restarts.
-2. Duplicate client order IDs cannot apply the same paper fill twice.
-3. Reconciliation reconstructs expected cash and quantities and never silently edits state.
-4. Transient broker failures are retried only within a bounded attempt and deadline policy.
-5. Permanent broker failures are never retried.
-6. Backtests sort input deterministically and therefore return the same result for the same data and configuration.
-7. Backtests model buy/sell slippage and fees rather than reporting frictionless results by default.
-8. Backtest reports include chronology, equity, return, drawdown, win rate, total fees, and average exposure.
-9. The active runtime remains crypto PAPER only.
-10. The US-stock domain is present but disabled and cannot submit orders.
-11. The default US-stock policy reserves 5% of its KRW 200,000 allocation and permits at most three positions.
-12. Real exchange authentication and order submission remain unimplemented and disabled for both domains.
-13. The independent crypto/US-stock baseline policy is documented, but the current runtime baseline implementation must still be separated into domain-specific persisted namespaces.
+1. KST date, crypto daily baseline, HALTED state, account state, orders, and active cycle survive restarts.
+2. The crypto runtime writes only `crypto.trading_date` and `crypto.daily_baseline` for performance state.
+3. Reserved `us_stocks.trading_date` and `us_stocks.daily_baseline` values are not modified by crypto reset or resume operations.
+4. Legacy `trading_date` and `baseline_equity` values migrate once into the crypto namespace when namespaced values do not already exist.
+5. Existing namespaced crypto values take precedence over legacy values.
+6. Duplicate client order IDs cannot apply the same paper fill twice.
+7. Reconciliation reconstructs expected cash and quantities and never silently edits state.
+8. Transient broker failures are retried only within a bounded attempt and deadline policy.
+9. Permanent broker failures are never retried.
+10. Backtests sort input deterministically and therefore return the same result for the same data and configuration.
+11. Backtests model buy/sell slippage and fees rather than reporting frictionless results by default.
+12. Backtest reports include chronology, equity, return, drawdown, win rate, total fees, and average exposure.
+13. The active runtime remains crypto PAPER only.
+14. The US-stock domain is present but disabled and cannot submit orders.
+15. The default US-stock policy reserves 5% of its KRW 200,000 allocation and permits at most three positions.
+16. Real exchange authentication and order submission remain unimplemented and disabled for both domains.
 
 ## Current gaps and risks
 
@@ -137,46 +141,37 @@ Overall completion: **64%**
 5. The reliability executor is intentionally not wired into `PaperBroker`; local paper operations are synchronous and deterministic.
 6. A real exchange adapter must reconcile an order ID after timeout before submitting it again.
 7. Completed order history needs retention limits before long-running operation.
-8. US-stock broker, market data, market calendar, FX accounting, taxes, and fractional-share behavior are not implemented.
+8. US-stock broker, market data, market calendar, FX accounting, taxes, fractional-share behavior, and domain-specific HALT state are not implemented.
 9. The application still uses demo market data and a paper broker only.
-10. Until domain-specific baseline namespaces are implemented, enabling both domains could cause incorrect daily-return or risk calculations if shared state keys are reused.
+10. Legacy baseline keys remain in storage for rollback compatibility and need a documented retirement version before deletion.
 
 ## Immediate priority
 
-### P0 — Validate separation safely
+### P0 — Complete crypto module migration
 
-- Confirm all existing tests and new asset-domain tests pass.
-- Verify the execution flow remains unchanged.
 - Add compatibility imports before physically moving legacy crypto modules.
-- Define stable, non-overlapping storage keys for crypto and US-stock dates, baselines, and daily return state.
-
-### P1 — Complete crypto module migration
-
 - Move crypto market, strategy, broker wiring, and settings ownership into `aipro/crypto/`.
-- Keep shared models, storage contracts, reliability, and generic backtesting in `aipro/core/` or asset-neutral modules.
-- Preserve existing SQLite state keys and deterministic order IDs through a compatibility migration.
+- Preserve existing SQLite account keys, crypto baseline keys, and deterministic order IDs.
+- Confirm restart, liquidation, Telegram, reconciliation, and backtesting tests remain unchanged.
 
-### P2 — Independent daily baselines
-
-- Persist `crypto.daily_baseline` and `us_stocks.daily_baseline` separately.
-- Calculate each baseline from only that domain's cash and marked-to-market holdings.
-- Reset each domain independently once per configured trading day.
-- Add restart, date-rollover, deposit/withdrawal, and cross-domain isolation tests.
-- Keep combined equity reporting read-only and separate from strategy risk state.
-
-### P3 — Historical data ingestion
+### P1 — Historical data ingestion
 
 - Add strict CSV parsing with timestamp, symbol, price, momentum, and volatility validation.
 - Reject duplicate or malformed rows before a backtest starts.
 - Add dataset metadata and reproducibility fingerprinting.
 
-### P4 — Independent paper-readiness gates
+### P2 — Independent paper-readiness gates
 
 - Define minimum sample size, maximum drawdown, fee-adjusted return, and stability requirements.
 - Produce separate pass/fail reports for crypto and US stocks.
 - Require multiple market regimes and out-of-sample validation.
 
-### P5 — Exchange-readiness
+### P3 — Completed-order retention
+
+- Define bounded retention and archival rules for completed PAPER orders and immutable events.
+- Preserve reconciliation evidence while preventing unbounded database growth.
+
+### P4 — Exchange-readiness
 
 - Add read-only Upbit market data first.
 - Research and select a compliant US-stock broker/data interface before implementation.
@@ -188,4 +183,4 @@ A task is complete only when implementation, tests, documentation, limitations, 
 
 ## Next action
 
-Confirm CI for the domain separation branch, then implement independent persisted daily-baseline namespaces before enabling any US-stock runtime or broker integration.
+Merge the independent baseline namespace change after CI, then begin the compatibility-first migration of crypto runtime modules into `aipro/crypto/` without changing the public execution flow.

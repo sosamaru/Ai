@@ -19,6 +19,12 @@ LOGGER = logging.getLogger(__name__)
 KST = ZoneInfo("Asia/Seoul")
 ACTIVE_CYCLE_STATE_KEY = "active_cycle_id"
 CYCLE_SEQUENCE_STATE_KEY = "cycle_sequence"
+CRYPTO_TRADING_DATE_STATE_KEY = "crypto.trading_date"
+CRYPTO_BASELINE_EQUITY_STATE_KEY = "crypto.daily_baseline"
+US_STOCK_TRADING_DATE_STATE_KEY = "us_stocks.trading_date"
+US_STOCK_BASELINE_EQUITY_STATE_KEY = "us_stocks.daily_baseline"
+LEGACY_TRADING_DATE_STATE_KEY = "trading_date"
+LEGACY_BASELINE_EQUITY_STATE_KEY = "baseline_equity"
 
 
 class TradingApplication:
@@ -34,6 +40,7 @@ class TradingApplication:
         self.broker = PaperBroker.restore(float(settings.initial_cash_krw), self.storage)
         self._date_provider = date_provider or (lambda: datetime.now(KST).date())
 
+        self._migrate_legacy_crypto_baseline_state()
         persisted_halt = self.storage.get_state("halted") == "1"
         self.risk = RiskManager(settings.daily_loss_limit_pct, halted=persisted_halt)
         self.baseline_equity = self._load_baseline()
@@ -41,34 +48,77 @@ class TradingApplication:
     def _today(self) -> str:
         return self._date_provider().isoformat()
 
+    def _migrate_legacy_crypto_baseline_state(self) -> None:
+        """Copy legacy crypto baseline keys into the crypto namespace once.
+
+        Existing namespaced values always win. Legacy keys remain readable for
+        rollback compatibility but are no longer written by this runtime.
+        """
+        migrated: dict[str, str] = {}
+        if self.storage.get_state(CRYPTO_TRADING_DATE_STATE_KEY) is None:
+            legacy_date = self.storage.get_state(LEGACY_TRADING_DATE_STATE_KEY)
+            if legacy_date is not None:
+                self.storage.set_state(CRYPTO_TRADING_DATE_STATE_KEY, legacy_date)
+                migrated[CRYPTO_TRADING_DATE_STATE_KEY] = legacy_date
+
+        if self.storage.get_state(CRYPTO_BASELINE_EQUITY_STATE_KEY) is None:
+            legacy_baseline = self.storage.get_state(LEGACY_BASELINE_EQUITY_STATE_KEY)
+            if legacy_baseline is not None:
+                self.storage.set_state(CRYPTO_BASELINE_EQUITY_STATE_KEY, legacy_baseline)
+                migrated[CRYPTO_BASELINE_EQUITY_STATE_KEY] = legacy_baseline
+
+        if migrated:
+            self.storage.record(
+                "crypto_baseline_state_migrated",
+                json.dumps(
+                    {
+                        "source_keys": [
+                            LEGACY_TRADING_DATE_STATE_KEY,
+                            LEGACY_BASELINE_EQUITY_STATE_KEY,
+                        ],
+                        "migrated": migrated,
+                    },
+                    sort_keys=True,
+                ),
+            )
+
     def _load_baseline(self) -> float:
-        stored = self.storage.get_state("baseline_equity")
+        stored = self.storage.get_state(CRYPTO_BASELINE_EQUITY_STATE_KEY)
         if stored is None:
             return float(self.settings.initial_cash_krw)
         try:
             baseline = float(stored)
         except ValueError:
-            LOGGER.error("Invalid persisted baseline; restoring initial cash baseline")
+            LOGGER.error("Invalid persisted crypto baseline; restoring initial cash baseline")
             return float(self.settings.initial_cash_krw)
         return baseline if baseline > 0 else float(self.settings.initial_cash_krw)
 
     def _persist_daily_baseline(self, trading_date: str, equity: float) -> None:
+        if equity <= 0:
+            raise ValueError("crypto daily baseline must be positive")
         self.baseline_equity = equity
-        self.storage.set_state("trading_date", trading_date)
-        self.storage.set_state("baseline_equity", str(equity))
+        self.storage.set_state(CRYPTO_TRADING_DATE_STATE_KEY, trading_date)
+        self.storage.set_state(CRYPTO_BASELINE_EQUITY_STATE_KEY, str(equity))
         self.storage.record(
-            "baseline_reset",
-            json.dumps({"trading_date": trading_date, "equity": equity}),
+            "crypto_baseline_reset",
+            json.dumps(
+                {
+                    "asset_class": "crypto",
+                    "trading_date": trading_date,
+                    "equity": equity,
+                },
+                sort_keys=True,
+            ),
         )
 
     def _sync_daily_baseline(self, equity: float) -> None:
         today = self._today()
-        stored_date = self.storage.get_state("trading_date")
+        stored_date = self.storage.get_state(CRYPTO_TRADING_DATE_STATE_KEY)
         if stored_date != today:
             self._persist_daily_baseline(today, equity)
             return
 
-        stored_baseline = self.storage.get_state("baseline_equity")
+        stored_baseline = self.storage.get_state(CRYPTO_BASELINE_EQUITY_STATE_KEY)
         if stored_baseline is None:
             self._persist_daily_baseline(today, equity)
 
@@ -151,6 +201,7 @@ class TradingApplication:
         daily_return_pct = (equity / self.baseline_equity - 1) * 100
         reconciliation = self.reconcile()
         return {
+            "asset_class": "crypto",
             "mode": self.settings.mode,
             "halted": self.risk.halted,
             "trading_date": self._today(),
@@ -172,8 +223,8 @@ class TradingApplication:
         self.risk.resume()
         self._persist_halted(False)
         self._persist_daily_baseline(self._today(), equity)
-        self.storage.record("resume", json.dumps({"equity": equity}))
-        LOGGER.warning("Trading resumed explicitly with a new daily baseline")
+        self.storage.record("resume", json.dumps({"asset_class": "crypto", "equity": equity}))
+        LOGGER.warning("Crypto trading resumed explicitly with a new daily baseline")
 
     def run_once(self) -> None:
         cycle_id = self._begin_cycle()
@@ -200,7 +251,7 @@ class TradingApplication:
             if not was_halted:
                 self.storage.record(
                     "halt",
-                    json.dumps({"return_pct": daily_return_pct}),
+                    json.dumps({"asset_class": "crypto", "return_pct": daily_return_pct}),
                 )
             self._finish_cycle(cycle_id)
             return
