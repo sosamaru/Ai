@@ -18,7 +18,7 @@ Development order:
 
 ## Current status
 
-Overall completion: **47%**
+Overall completion: **50%**
 
 ### Completed
 
@@ -39,7 +39,7 @@ Overall completion: **47%**
 - [x] `/go` restricted to HALTED state
 - [x] Standard-library Telegram long polling with retry
 - [x] Configuration, persistent-state, and Telegram router tests
-- [x] GitHub Actions pytest workflow
+- [x] GitHub Actions pytest workflow with diagnostic log artifact
 - [x] Persistent paper cash, positions, and average prices
 - [x] Safe recovery from invalid persisted paper-account state
 - [x] Immutable paper buy/sell event records in SQLite
@@ -55,11 +55,14 @@ Overall completion: **47%**
 - [x] Deterministic application order IDs from date, cycle, side, and symbol
 - [x] Persistent active-cycle recovery after interrupted execution
 - [x] Application status exposes cycle sequence and active cycle
+- [x] Successful GitHub Actions validation for deterministic application order IDs
+- [x] Read-only cash and position-quantity reconciliation
+- [x] Reconciliation mismatch reporting without automatic state mutation
+- [x] Reconciliation summary exposed through application status
 
 ### In progress
 
-- [ ] Confirm GitHub Actions for deterministic application order IDs
-- [ ] Position/order reconciliation
+- [ ] Confirm GitHub Actions for read-only reconciliation
 - [ ] Retry and timeout policy for broker operations
 - [ ] Backtesting engine and performance report
 - [ ] Paper-trading readiness validation
@@ -90,45 +93,50 @@ Overall completion: **47%**
 10. Each application cycle receives a persistent sequence and deterministic order IDs.
 11. Interrupted cycles remain active so a restarted process reuses the same order IDs.
 12. A cycle is cleared only after the full application run completes successfully.
-13. Existing `buy()` and `sell_all()` compatibility methods remain available.
-14. Telegram is disabled when no token is configured; console mode runs one cycle.
-15. Unauthorized chat IDs cannot inspect or change application state.
-16. Real exchange orders remain unimplemented and disabled.
+13. Reconciliation rebuilds expected cash and net position quantities from filled immutable orders.
+14. Reconciliation only reports mismatches and never silently edits cash, positions, or orders.
+15. Application status exposes reconciliation health and issue count.
+16. Existing `buy()` and `sell_all()` compatibility methods remain available.
+17. Telegram is disabled when no token is configured; console mode runs one cycle.
+18. Unauthorized chat IDs cannot inspect or change application state.
+19. Real exchange orders remain unimplemented and disabled.
 
 ## Current gaps and risks
 
-1. Position and order reconciliation is not implemented.
-2. Completed order history is stored with the paper-account snapshot and needs retention limits before long-running operation.
-3. Broker operations do not implement bounded retries, timeout handling, partial fills, or cancellation states.
-4. A permanently failing cycle requires an explicit administrative recovery policy before production operation.
-5. Telegram bot tokens remain environment-managed; a production secret manager is not integrated.
-6. The application still uses demo market data and a paper broker only.
-7. The three-step live approval flow is intentionally not implemented yet.
+1. Reconciliation does not yet compare against an external exchange account because no Upbit account client exists.
+2. Average-price reconstruction is intentionally excluded because legacy random order IDs do not guarantee chronological replay.
+3. Completed order history is stored with the paper-account snapshot and needs retention limits before long-running operation.
+4. Broker operations do not implement bounded retries, timeout handling, partial fills, or cancellation states.
+5. A permanently failing cycle requires an explicit administrative recovery policy before production operation.
+6. Telegram bot tokens remain environment-managed; a production secret manager is not integrated.
+7. The application still uses demo market data and a paper broker only.
+8. The three-step live approval flow is intentionally not implemented yet.
 
 ## Immediate priority
 
-### P0 — Validate application-level idempotency
+### P0 — Validate reconciliation
 
-- Confirm GitHub Actions passes for deterministic order-ID and interrupted-cycle tests.
-- Verify broker, forced-liquidation, persistent-state, and Telegram tests do not regress.
+- Confirm GitHub Actions passes for consistent-account and mismatch-detection tests.
+- Verify reconciliation performs no state mutation.
+- Verify all previous order, liquidation, persistent-state, and Telegram tests remain green.
 
-### P1 — Position and order reconciliation
-
-- Compare persisted account state with broker order results.
-- Detect missing, duplicated, or conflicting position changes.
-- Add safe reconciliation events without silently modifying state.
-
-### P2 — Broker reliability
+### P1 — Broker reliability
 
 - Add bounded retry and timeout policies.
 - Define pending, rejected, cancelled, and partially filled states.
 - Add completed-order retention or archival policy.
 
-### P3 — Validation foundation
+### P2 — Validation foundation
 
 - Build deterministic replay/backtesting support.
 - Record fees, slippage, drawdown, win rate, and exposure.
 - Define measurable paper-trading acceptance criteria.
+
+### P3 — Exchange integration
+
+- Implement read-only Upbit market data first.
+- Add authenticated account reconciliation after safe credential handling is designed.
+- Keep order submission disabled until readiness criteria pass.
 
 ## Completion policy
 
@@ -136,4 +144,4 @@ A task is complete only when implementation, tests, documentation, limitations, 
 
 ## Next action
 
-Confirm CI for deterministic application order IDs, then implement read-only position/order reconciliation before adding retry behavior.
+Confirm CI for read-only reconciliation, then implement bounded retry and timeout behavior without enabling real exchange trading.
