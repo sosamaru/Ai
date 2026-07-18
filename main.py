@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from aipro.app import TradingApplication
-from aipro.config import Settings
+from aipro.crypto.application import TradingApplication
+from aipro.crypto.config import Settings
 from aipro.logging_setup import configure_logging
 
 
