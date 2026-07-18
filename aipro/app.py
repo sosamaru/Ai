@@ -28,7 +28,10 @@ class TradingApplication:
         self.storage = Storage(settings.db_path)
         self.market = DemoMarketData()
         self.strategy = MomentumStrategy()
-        self.broker = PaperBroker(float(settings.initial_cash_krw))
+        self.broker = PaperBroker.restore(
+            self.storage,
+            float(settings.initial_cash_krw),
+        )
         self._date_provider = date_provider or (lambda: datetime.now(KST).date())
 
         persisted_halt = self.storage.get_state("halted") == "1"
