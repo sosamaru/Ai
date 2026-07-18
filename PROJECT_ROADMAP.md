@@ -18,7 +18,7 @@ Development order:
 
 ## Current status
 
-Overall completion: **40%**
+Overall completion: **44%**
 
 ### Completed
 
@@ -46,12 +46,16 @@ Overall completion: **40%**
 - [x] Paper-account restart, liquidation, corruption, and invalid-trade tests
 - [x] Successful GitHub Actions validation for paper-account persistence
 - [x] Application-level forced-liquidation restart coverage
+- [x] Successful GitHub Actions validation for forced-liquidation coverage
+- [x] Immutable paper order records with explicit side and status
+- [x] Persistent client order identifiers across restarts
+- [x] Duplicate paper buy and sell requests applied at most once
+- [x] Idempotent no-position sell results
 
 ### In progress
 
-- [ ] Confirm a successful GitHub Actions result for forced-liquidation coverage
+- [ ] Confirm GitHub Actions for idempotent paper orders
 - [ ] Position/order reconciliation
-- [ ] Idempotent order lifecycle
 - [ ] Retry and timeout policy for broker operations
 - [ ] Backtesting engine and performance report
 - [ ] Paper-trading readiness validation
@@ -73,54 +77,51 @@ Overall completion: **40%**
 1. KST date and daily baseline survive process restarts.
 2. Daily-loss HALTED survives restarts and date changes.
 3. Only explicit resume clears HALTED and creates a new baseline.
-4. Paper cash, positions, and average prices survive process restarts.
+4. Paper cash, positions, average prices, and completed order records survive restarts.
 5. Invalid or corrupted paper-account state is rejected and safely reinitialized.
-6. Every successful paper buy and sell writes an immutable event record.
-7. Forced liquidation persists empty positions and reduced cash before restart.
-8. A restarted HALTED application cannot silently create new positions.
-9. Telegram is disabled when no token is configured; console mode runs one cycle.
-10. A configured token without authorized chat IDs fails closed at startup.
-11. Unauthorized chat IDs cannot inspect or change application state.
-12. `/run_once` is rejected while HALTED.
-13. `/go` only changes state when HALTED; repeated `/go` cannot silently rebase equity.
-14. Telegram uses HTTPS Bot API long polling and retries transient failures.
-15. Real exchange orders remain unimplemented and disabled.
+6. Forced liquidation persists empty positions and reduced cash before restart.
+7. A restarted HALTED application cannot silently create new positions.
+8. Repeated `submit_buy()` or `submit_sell_all()` calls with the same client order ID return the original immutable result without changing balances twice.
+9. Orders expose explicit `BUY`/`SELL` sides and `FILLED`/`NO_POSITION` states.
+10. Existing `buy()` and `sell_all()` compatibility methods remain available.
+11. Telegram is disabled when no token is configured; console mode runs one cycle.
+12. Unauthorized chat IDs cannot inspect or change application state.
+13. Real exchange orders remain unimplemented and disabled.
 
 ## Current gaps and risks
 
-1. Broker operations still lack idempotent client order identifiers and explicit order states.
+1. Application decisions still use automatically generated order IDs instead of deterministic cycle-level IDs.
 2. Position and order reconciliation is not implemented.
-3. Telegram bot tokens remain environment-managed; a production secret manager is not integrated.
-4. Telegram uses a single-process polling loop without process supervision.
-5. Broker operations do not implement bounded retries, timeout handling, or partial fills.
+3. Completed order history is stored with the paper-account snapshot and needs retention limits before long-running operation.
+4. Broker operations do not implement bounded retries, timeout handling, partial fills, or cancellation states.
+5. Telegram bot tokens remain environment-managed; a production secret manager is not integrated.
 6. The application still uses demo market data and a paper broker only.
-7. Forced-liquidation coverage requires a confirmed successful CI run.
-8. The three-step live approval flow is intentionally not implemented yet.
+7. The three-step live approval flow is intentionally not implemented yet.
 
 ## Immediate priority
 
-### P0 — Complete forced-liquidation validation
+### P0 — Validate idempotent order foundation
 
-- Confirm GitHub Actions passes for application-level forced-liquidation restart coverage.
-- Verify no previous tests regress.
+- Confirm GitHub Actions passes for duplicate-order and restart tests.
+- Verify existing broker and forced-liquidation tests do not regress.
 
-### P1 — Order safety foundation
+### P1 — Integrate deterministic application order IDs
 
-- Add idempotent client order identifiers.
-- Define order states and immutable transaction records.
+- Generate stable IDs from trading date, cycle, side, and symbol.
+- Prevent application-level retries from creating duplicate fills.
+- Add order lookup and reconciliation hooks.
+
+### P2 — Broker reliability
+
 - Add bounded retry and timeout policies.
+- Define pending, rejected, cancelled, and partially filled states.
+- Add completed-order retention or archival policy.
 
-### P2 — Validation foundation
+### P3 — Validation foundation
 
 - Build deterministic replay/backtesting support.
 - Record fees, slippage, drawdown, win rate, and exposure.
 - Define measurable paper-trading acceptance criteria.
-
-### P3 — Exchange integration
-
-- Implement read-only Upbit market data first.
-- Add authenticated account reconciliation.
-- Keep order submission disabled until readiness criteria pass.
 
 ## Completion policy
 
@@ -128,4 +129,4 @@ A task is complete only when implementation, tests, documentation, limitations, 
 
 ## Next action
 
-Confirm CI for forced-liquidation restart coverage, then begin the idempotent order lifecycle without changing the existing execution flow.
+Confirm CI for the idempotent paper-order branch, then integrate deterministic application-level order IDs before implementing exchange reconciliation.
