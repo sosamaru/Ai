@@ -34,7 +34,7 @@ def reconcile_paper_account(
     *,
     absolute_tolerance: float = 1e-6,
 ) -> ReconciliationReport:
-    """Rebuild cash and net quantities from immutable order records without mutating state."""
+    """Rebuild cash and net quantities from active and archived immutable orders."""
     if not math.isfinite(initial_cash_krw) or initial_cash_krw < 0:
         raise ValueError("initial_cash_krw must be finite and non-negative")
     if not math.isfinite(absolute_tolerance) or absolute_tolerance < 0:
@@ -44,15 +44,7 @@ def reconcile_paper_account(
     expected_quantities: dict[str, float] = defaultdict(float)
     issues: list[ReconciliationIssue] = []
 
-    for order_id, order in broker.orders.items():
-        if order_id != order.client_order_id:
-            issues.append(
-                ReconciliationIssue(
-                    code="ORDER_ID_MISMATCH",
-                    message="order dictionary key differs from client order id",
-                    symbol=order.symbol,
-                )
-            )
+    for order in broker.all_orders():
         if order.status is not OrderStatus.FILLED:
             continue
         if order.side is OrderSide.BUY:
