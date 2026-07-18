@@ -29,14 +29,6 @@ class StateStore(Protocol):
 
     def record(self, event_type: str, payload: str) -> None: ...
 
-    def archive_paper_order(self, client_order_id: str, payload: str) -> None: ...
-
-    def get_archived_paper_order(self, client_order_id: str) -> str | None: ...
-
-    def list_archived_paper_orders(self) -> tuple[str, ...]: ...
-
-    def completed_paper_order_ids(self) -> tuple[str, ...]: ...
-
 
 @dataclass(slots=True)
 class Position:
@@ -193,7 +185,10 @@ class PaperBroker:
     def _archived_order(self, client_order_id: str) -> OrderRecord | None:
         if self.storage is None:
             return None
-        raw = self.storage.get_archived_paper_order(client_order_id)
+        getter = getattr(self.storage, "get_archived_paper_order", None)
+        if getter is None:
+            return None
+        raw = getter(client_order_id)
         if raw is None:
             return None
         try:
@@ -207,8 +202,10 @@ class PaperBroker:
     def all_orders(self) -> tuple[OrderRecord, ...]:
         archived: list[OrderRecord] = []
         if self.storage is not None:
-            for raw in self.storage.list_archived_paper_orders():
-                archived.append(self._deserialize_order(json.loads(raw)))
+            lister = getattr(self.storage, "list_archived_paper_orders", None)
+            if lister is not None:
+                for raw in lister():
+                    archived.append(self._deserialize_order(json.loads(raw)))
         active_ids = set(self.orders)
         return tuple(order for order in archived if order.client_order_id not in active_ids) + tuple(
             self.orders.values()
@@ -225,9 +222,14 @@ class PaperBroker:
         if self.storage is None:
             raise RuntimeError("paper order archival requires persistent storage")
 
+        completed_ids_reader = getattr(self.storage, "completed_paper_order_ids", None)
+        archive_writer = getattr(self.storage, "archive_paper_order", None)
+        if completed_ids_reader is None or archive_writer is None:
+            raise RuntimeError("state store does not support paper order archival")
+
         completed_ids = [
             order_id
-            for order_id in self.storage.completed_paper_order_ids()
+            for order_id in completed_ids_reader()
             if order_id in self.orders
             and self.orders[order_id].status in TERMINAL_ORDER_STATUSES
         ]
@@ -237,7 +239,7 @@ class PaperBroker:
 
         for order_id in archive_ids:
             order = self.orders[order_id]
-            self.storage.archive_paper_order(order_id, self._order_json(order))
+            archive_writer(order_id, self._order_json(order))
 
         for order_id in archive_ids:
             del self.orders[order_id]
