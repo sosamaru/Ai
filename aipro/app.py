@@ -198,7 +198,8 @@ class TradingApplication:
                 ),
             )
             if decision.signal is Signal.BUY:
-                if len(self.broker.positions) >= self.settings.max_positions:
+                is_new_position = snapshot.symbol not in self.broker.positions
+                if is_new_position and len(self.broker.positions) >= self.settings.max_positions:
                     continue
                 amount = self.risk.position_size(
                     self.broker.cash_krw,
