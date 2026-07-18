@@ -18,7 +18,7 @@ Development order:
 
 ## Current status
 
-Overall completion: **54%**
+Overall completion: **62%**
 
 ### Completed
 
@@ -45,22 +45,21 @@ Overall completion: **54%**
 - [x] Application-level forced-liquidation restart coverage
 - [x] Immutable and idempotent paper order records
 - [x] Deterministic application order IDs and interrupted-cycle recovery
-- [x] Successful GitHub Actions validation for deterministic order IDs
 - [x] Read-only cash and position-quantity reconciliation
-- [x] Reconciliation mismatch reporting without automatic state mutation
-- [x] Successful GitHub Actions validation for read-only reconciliation
-- [x] Bounded retry policy for transient broker failures
-- [x] Permanent broker errors fail immediately without retry
-- [x] Broker operation deadline and timeout error foundation
+- [x] Bounded retry policy, permanent-error handling, and operation deadline
 - [x] Extended order states: pending, partial, rejected, cancelled, and timeout
+- [x] Successful GitHub Actions validation for broker reliability
+- [x] Deterministic historical replay ordered by timestamp and symbol
+- [x] Configurable fees, slippage, position sizing, and maximum positions
+- [x] Equity curve, total return, maximum drawdown, win rate, fees, and exposure metrics
+- [x] Machine-readable and human-readable backtest reports
 
 ### In progress
 
-- [ ] Confirm GitHub Actions for broker reliability policy
-- [ ] Integrate reliability executor at exchange-adapter boundary
+- [ ] Confirm GitHub Actions for deterministic backtesting
+- [ ] CSV historical-data loader and schema validation
+- [ ] Paper-trading readiness criteria and validation report
 - [ ] Completed-order retention and archival policy
-- [ ] Backtesting engine and performance report
-- [ ] Paper-trading readiness validation
 
 ### Not started
 
@@ -79,40 +78,48 @@ Overall completion: **54%**
 1. KST date, daily baseline, HALTED state, account state, orders, and active cycle survive restarts.
 2. Duplicate client order IDs cannot apply the same paper fill twice.
 3. Reconciliation reconstructs expected cash and quantities and never silently edits state.
-4. Transient broker failures can be retried only up to a configured attempt limit.
+4. Transient broker failures are retried only within a bounded attempt and deadline policy.
 5. Permanent broker failures are never retried.
-6. Retry backoff is bounded and constrained by the overall operation deadline.
-7. A result that returns after the deadline raises a timeout requiring reconciliation before another order attempt.
-8. Real exchange authentication and order submission remain unimplemented and disabled.
+6. Backtests sort input deterministically and therefore return the same result for the same data and configuration.
+7. Backtests model buy/sell slippage and fees rather than reporting frictionless results by default.
+8. Backtest reports include chronology, equity, return, drawdown, win rate, total fees, and average exposure.
+9. Real exchange authentication and order submission remain unimplemented and disabled.
 
 ## Current gaps and risks
 
-1. The reliability executor is intentionally not wired into `PaperBroker`; local paper operations are synchronous and deterministic.
-2. A real exchange adapter must reconcile an order ID after timeout before submitting it again.
-3. Python cannot forcibly cancel an arbitrary blocking network call safely; the future HTTP adapter must also configure socket/connect/read timeouts.
-4. Partial-fill fields and cancellation transitions are not yet represented in `OrderRecord` beyond status values.
-5. Completed order history needs retention limits before long-running operation.
-6. Reconciliation does not compare against an external exchange account because no authenticated Upbit client exists.
+1. Historical data still must be supplied as validated `BacktestBar` objects; CSV ingestion is not implemented yet.
+2. The current backtest fills at the supplied bar price adjusted by fixed slippage and does not model order-book depth or partial fills.
+3. Open positions are marked to the latest supplied price at the end of a backtest rather than forcibly liquidated.
+4. The reliability executor is intentionally not wired into `PaperBroker`; local paper operations are synchronous and deterministic.
+5. A real exchange adapter must reconcile an order ID after timeout before submitting it again.
+6. Completed order history needs retention limits before long-running operation.
 7. The application still uses demo market data and a paper broker only.
 
 ## Immediate priority
 
-### P0 — Validate broker reliability
+### P0 — Validate deterministic backtesting
 
-- Confirm GitHub Actions passes retry, timeout, and permanent-error tests.
-- Verify existing persistence, reconciliation, liquidation, and Telegram tests remain green.
+- Confirm GitHub Actions passes all new replay and metric tests.
+- Verify input ordering does not change results.
+- Verify fees and slippage reduce returns as expected.
 
-### P1 — Backtesting foundation
+### P1 — Historical data ingestion
 
-- Build deterministic historical replay without changing live-facing architecture.
-- Record fees, slippage, drawdown, win rate, exposure, and trade chronology.
-- Produce a machine-readable and human-readable performance report.
+- Add strict CSV parsing with timestamp, symbol, price, momentum, and volatility validation.
+- Reject duplicate or malformed rows before a backtest starts.
+- Add dataset metadata and reproducibility fingerprinting.
 
-### P2 — Exchange-readiness
+### P2 — Paper-trading acceptance gate
+
+- Define minimum sample size, maximum drawdown, fee-adjusted return, and stability requirements.
+- Produce a pass/fail readiness report without enabling live trading.
+- Require multiple market regimes and out-of-sample validation.
+
+### P3 — Exchange-readiness
 
 - Add read-only Upbit market data first.
 - Apply HTTP connect/read timeouts at the adapter boundary.
-- Require order lookup and reconciliation after ambiguous timeout outcomes.
+- Keep authenticated order submission disabled until readiness criteria pass.
 
 ## Completion policy
 
@@ -120,4 +127,4 @@ A task is complete only when implementation, tests, documentation, limitations, 
 
 ## Next action
 
-Confirm CI for the broker reliability branch, then begin the deterministic backtesting engine before any authenticated exchange integration.
+Confirm CI for deterministic backtesting, then add validated historical-data ingestion and a measurable paper-trading readiness gate before any authenticated exchange integration.
