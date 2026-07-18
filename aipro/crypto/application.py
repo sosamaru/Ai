@@ -32,7 +32,7 @@ class CryptoTradingApplication(LegacyTradingApplication):
         self.settings = settings
         self.storage = Storage(settings.db_path)
         if settings.market_data_provider == "UPBIT":
-            delegate = UpbitMarketData(
+            self.market = UpbitMarketData(
                 symbols=settings.crypto_symbols,
                 client=UpbitPublicClient(
                     timeout_sec=settings.market_data_timeout_sec,
@@ -40,10 +40,10 @@ class CryptoTradingApplication(LegacyTradingApplication):
                 ),
             )
         else:
-            delegate = DemoMarketData()
-        self.market = HealthCheckedMarketData(
+            self.market = DemoMarketData()
+        self.market_health = HealthCheckedMarketData(
             provider_name=settings.market_data_provider,
-            delegate=delegate,
+            delegate=self.market,
             policy=MarketDataHealthPolicy(
                 max_latency_sec=settings.market_data_max_latency_sec,
                 max_snapshot_age_sec=settings.market_data_max_snapshot_age_sec,
@@ -59,14 +59,24 @@ class CryptoTradingApplication(LegacyTradingApplication):
         self.risk = RiskManager(settings.daily_loss_limit_pct, halted=persisted_halt)
         self.baseline_equity = self._load_baseline()
 
+    def _call_with_health_gate(self, operation: Callable[[], object]) -> object:
+        original = self.market
+        self.market_health.delegate = original
+        self.market = self.market_health  # type: ignore[assignment]
+        try:
+            return operation()
+        finally:
+            self.market = original
+
     def status(self) -> dict[str, object]:
-        result = super().status()
-        result["market_data"] = self.market.health_status()
+        result = self._call_with_health_gate(super().status)
+        assert isinstance(result, dict)
+        result["market_data"] = self.market_health.health_status()
         return result
 
     def run_once(self) -> None:
         try:
-            super().run_once()
+            self._call_with_health_gate(super().run_once)
         except MarketDataHealthError as exc:
             cycle_id = self.storage.get_state(ACTIVE_CYCLE_STATE_KEY)
             if cycle_id:
