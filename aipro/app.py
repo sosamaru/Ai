@@ -16,6 +16,8 @@ from aipro.strategy import MomentumStrategy
 
 LOGGER = logging.getLogger(__name__)
 KST = ZoneInfo("Asia/Seoul")
+ACTIVE_CYCLE_STATE_KEY = "active_cycle_id"
+CYCLE_SEQUENCE_STATE_KEY = "cycle_sequence"
 
 
 class TradingApplication:
@@ -72,6 +74,49 @@ class TradingApplication:
     def _persist_halted(self, halted: bool) -> None:
         self.storage.set_state("halted", "1" if halted else "0")
 
+    def _load_cycle_sequence(self) -> int:
+        raw = self.storage.get_state(CYCLE_SEQUENCE_STATE_KEY)
+        if raw is None:
+            return 0
+        try:
+            sequence = int(raw)
+        except ValueError:
+            LOGGER.error("Invalid cycle sequence; resetting to zero")
+            return 0
+        return sequence if sequence >= 0 else 0
+
+    def _begin_cycle(self) -> str:
+        active = self.storage.get_state(ACTIVE_CYCLE_STATE_KEY)
+        if active:
+            return active
+
+        sequence = self._load_cycle_sequence() + 1
+        cycle_id = f"{self._today()}-{sequence:08d}"
+        self.storage.set_state(CYCLE_SEQUENCE_STATE_KEY, str(sequence))
+        self.storage.set_state(ACTIVE_CYCLE_STATE_KEY, cycle_id)
+        self.storage.record(
+            "cycle_started",
+            json.dumps({"cycle_id": cycle_id, "sequence": sequence}, sort_keys=True),
+        )
+        return cycle_id
+
+    def _finish_cycle(self, cycle_id: str) -> None:
+        active = self.storage.get_state(ACTIVE_CYCLE_STATE_KEY)
+        if active != cycle_id:
+            raise RuntimeError("active cycle changed unexpectedly")
+        self.storage.set_state(ACTIVE_CYCLE_STATE_KEY, "")
+        self.storage.record(
+            "cycle_completed",
+            json.dumps({"cycle_id": cycle_id}, sort_keys=True),
+        )
+
+    @staticmethod
+    def _order_id(cycle_id: str, side: str, symbol: str) -> str:
+        normalized_symbol = symbol.strip().upper().replace("/", "-")
+        if not normalized_symbol:
+            raise ValueError("symbol is required for order id")
+        return f"paper:{cycle_id}:{side.lower()}:{normalized_symbol}"
+
     def status(self) -> dict[str, object]:
         snapshots = self.market.snapshots()
         prices = {item.symbol: item.price for item in snapshots}
@@ -87,6 +132,8 @@ class TradingApplication:
             "baseline_equity_krw": round(self.baseline_equity, 2),
             "daily_return_pct": round(daily_return_pct, 4),
             "positions": len(self.broker.positions),
+            "active_cycle_id": self.storage.get_state(ACTIVE_CYCLE_STATE_KEY) or None,
+            "cycle_sequence": self._load_cycle_sequence(),
         }
 
     def resume(self) -> None:
@@ -100,6 +147,7 @@ class TradingApplication:
         LOGGER.warning("Trading resumed explicitly with a new daily baseline")
 
     def run_once(self) -> None:
+        cycle_id = self._begin_cycle()
         snapshots = self.market.snapshots()
         prices = {item.symbol: item.price for item in snapshots}
         equity = self.broker.equity(prices)
@@ -113,7 +161,11 @@ class TradingApplication:
                 if price is None:
                     LOGGER.error("Cannot liquidate %s: current price unavailable", symbol)
                     continue
-                self.broker.sell_all(symbol, price)
+                self.broker.submit_sell_all(
+                    self._order_id(cycle_id, "liquidate", symbol),
+                    symbol,
+                    price,
+                )
             self._persist_halted(True)
             LOGGER.critical("HALTED: daily loss limit reached or latch already active")
             if not was_halted:
@@ -121,6 +173,7 @@ class TradingApplication:
                     "halt",
                     json.dumps({"return_pct": daily_return_pct}),
                 )
+            self._finish_cycle(cycle_id)
             return
 
         for snapshot in snapshots:
@@ -136,6 +189,7 @@ class TradingApplication:
                 "decision",
                 json.dumps(
                     {
+                        "cycle_id": cycle_id,
                         "symbol": decision.symbol,
                         "signal": decision.signal.value,
                         "confidence": decision.confidence,
@@ -144,7 +198,8 @@ class TradingApplication:
                 ),
             )
             if decision.signal is Signal.BUY:
-                if len(self.broker.positions) >= self.settings.max_positions:
+                is_new_position = snapshot.symbol not in self.broker.positions
+                if is_new_position and len(self.broker.positions) >= self.settings.max_positions:
                     continue
                 amount = self.risk.position_size(
                     self.broker.cash_krw,
@@ -152,14 +207,25 @@ class TradingApplication:
                     self.settings.min_order_krw,
                 )
                 if amount:
-                    self.broker.buy(snapshot.symbol, snapshot.price, amount)
+                    self.broker.submit_buy(
+                        self._order_id(cycle_id, "buy", snapshot.symbol),
+                        snapshot.symbol,
+                        snapshot.price,
+                        amount,
+                    )
             elif decision.signal is Signal.SELL:
-                self.broker.sell_all(snapshot.symbol, snapshot.price)
+                self.broker.submit_sell_all(
+                    self._order_id(cycle_id, "sell", snapshot.symbol),
+                    snapshot.symbol,
+                    snapshot.price,
+                )
 
         LOGGER.info(
-            "cycle complete mode=%s cash=%.0f equity=%.0f positions=%d",
+            "cycle complete id=%s mode=%s cash=%.0f equity=%.0f positions=%d",
+            cycle_id,
             self.settings.mode,
             self.broker.cash_krw,
             self.broker.equity(prices),
             len(self.broker.positions),
         )
+        self._finish_cycle(cycle_id)

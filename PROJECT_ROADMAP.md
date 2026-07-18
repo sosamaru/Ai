@@ -18,7 +18,7 @@ Development order:
 
 ## Current status
 
-Overall completion: **44%**
+Overall completion: **47%**
 
 ### Completed
 
@@ -51,10 +51,14 @@ Overall completion: **44%**
 - [x] Persistent client order identifiers across restarts
 - [x] Duplicate paper buy and sell requests applied at most once
 - [x] Idempotent no-position sell results
+- [x] Successful GitHub Actions validation for idempotent paper orders
+- [x] Deterministic application order IDs from date, cycle, side, and symbol
+- [x] Persistent active-cycle recovery after interrupted execution
+- [x] Application status exposes cycle sequence and active cycle
 
 ### In progress
 
-- [ ] Confirm GitHub Actions for idempotent paper orders
+- [ ] Confirm GitHub Actions for deterministic application order IDs
 - [ ] Position/order reconciliation
 - [ ] Retry and timeout policy for broker operations
 - [ ] Backtesting engine and performance report
@@ -83,33 +87,36 @@ Overall completion: **44%**
 7. A restarted HALTED application cannot silently create new positions.
 8. Repeated `submit_buy()` or `submit_sell_all()` calls with the same client order ID return the original immutable result without changing balances twice.
 9. Orders expose explicit `BUY`/`SELL` sides and `FILLED`/`NO_POSITION` states.
-10. Existing `buy()` and `sell_all()` compatibility methods remain available.
-11. Telegram is disabled when no token is configured; console mode runs one cycle.
-12. Unauthorized chat IDs cannot inspect or change application state.
-13. Real exchange orders remain unimplemented and disabled.
+10. Each application cycle receives a persistent sequence and deterministic order IDs.
+11. Interrupted cycles remain active so a restarted process reuses the same order IDs.
+12. A cycle is cleared only after the full application run completes successfully.
+13. Existing `buy()` and `sell_all()` compatibility methods remain available.
+14. Telegram is disabled when no token is configured; console mode runs one cycle.
+15. Unauthorized chat IDs cannot inspect or change application state.
+16. Real exchange orders remain unimplemented and disabled.
 
 ## Current gaps and risks
 
-1. Application decisions still use automatically generated order IDs instead of deterministic cycle-level IDs.
-2. Position and order reconciliation is not implemented.
-3. Completed order history is stored with the paper-account snapshot and needs retention limits before long-running operation.
-4. Broker operations do not implement bounded retries, timeout handling, partial fills, or cancellation states.
+1. Position and order reconciliation is not implemented.
+2. Completed order history is stored with the paper-account snapshot and needs retention limits before long-running operation.
+3. Broker operations do not implement bounded retries, timeout handling, partial fills, or cancellation states.
+4. A permanently failing cycle requires an explicit administrative recovery policy before production operation.
 5. Telegram bot tokens remain environment-managed; a production secret manager is not integrated.
 6. The application still uses demo market data and a paper broker only.
 7. The three-step live approval flow is intentionally not implemented yet.
 
 ## Immediate priority
 
-### P0 — Validate idempotent order foundation
+### P0 — Validate application-level idempotency
 
-- Confirm GitHub Actions passes for duplicate-order and restart tests.
-- Verify existing broker and forced-liquidation tests do not regress.
+- Confirm GitHub Actions passes for deterministic order-ID and interrupted-cycle tests.
+- Verify broker, forced-liquidation, persistent-state, and Telegram tests do not regress.
 
-### P1 — Integrate deterministic application order IDs
+### P1 — Position and order reconciliation
 
-- Generate stable IDs from trading date, cycle, side, and symbol.
-- Prevent application-level retries from creating duplicate fills.
-- Add order lookup and reconciliation hooks.
+- Compare persisted account state with broker order results.
+- Detect missing, duplicated, or conflicting position changes.
+- Add safe reconciliation events without silently modifying state.
 
 ### P2 — Broker reliability
 
@@ -129,4 +136,4 @@ A task is complete only when implementation, tests, documentation, limitations, 
 
 ## Next action
 
-Confirm CI for the idempotent paper-order branch, then integrate deterministic application-level order IDs before implementing exchange reconciliation.
+Confirm CI for deterministic application order IDs, then implement read-only position/order reconciliation before adding retry behavior.
