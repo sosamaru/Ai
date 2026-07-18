@@ -39,14 +39,20 @@ def test_interrupted_cycle_reuses_order_ids_after_restart(tmp_path, monkeypatch)
     settings = _settings(tmp_path)
     trading_date = date(2026, 7, 18)
     app = TradingApplication(settings, date_provider=lambda: trading_date)
-    original_submit_sell = app.broker.submit_sell_all
+    original_submit_buy = app.broker.submit_buy
 
-    def fail_after_buy(client_order_id: str, symbol: str, price: float):
-        raise RuntimeError("simulated process interruption")
+    def fill_then_interrupt(
+        client_order_id: str,
+        symbol: str,
+        price: float,
+        amount_krw: int,
+    ):
+        order = original_submit_buy(client_order_id, symbol, price, amount_krw)
+        raise RuntimeError("simulated process interruption after fill")
 
-    monkeypatch.setattr(app.broker, "submit_sell_all", fail_after_buy)
+    monkeypatch.setattr(app.broker, "submit_buy", fill_then_interrupt)
 
-    with pytest.raises(RuntimeError, match="simulated process interruption"):
+    with pytest.raises(RuntimeError, match="simulated process interruption after fill"):
         app.run_once()
 
     cash_after_interruption = app.broker.cash_krw
@@ -54,7 +60,6 @@ def test_interrupted_cycle_reuses_order_ids_after_restart(tmp_path, monkeypatch)
     assert app.storage.get_state(ACTIVE_CYCLE_STATE_KEY) == "2026-07-18-00000001"
     assert len([o for o in app.broker.orders.values() if o.side is OrderSide.BUY]) == 1
 
-    # A new process restores both the active cycle and the already-filled buy order.
     restarted = TradingApplication(settings, date_provider=lambda: trading_date)
     restarted.run_once()
 
@@ -66,6 +71,24 @@ def test_interrupted_cycle_reuses_order_ids_after_restart(tmp_path, monkeypatch)
     assert restarted.broker.cash_krw == pytest.approx(cash_after_interruption)
     assert restarted.status()["active_cycle_id"] is None
     assert restarted.status()["cycle_sequence"] == 1
+
+
+def test_existing_position_can_be_extended_at_position_limit(tmp_path) -> None:
+    settings = Settings(
+        initial_cash_krw=1_000_000,
+        max_positions=1,
+        db_path=tmp_path / "aipro.db",
+        log_dir=tmp_path / "logs",
+    )
+    trading_date = date(2026, 7, 18)
+    app = TradingApplication(settings, date_provider=lambda: trading_date)
+
+    app.run_once()
+    first_quantity = app.broker.positions["KRW-BTC"].quantity
+    app.run_once()
+
+    assert app.broker.positions["KRW-BTC"].quantity > first_quantity
+    assert len(app.broker.positions) == 1
 
 
 def test_order_id_normalizes_symbol_and_rejects_empty_symbol() -> None:
