@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from urllib.error import URLError
 
 import pytest
@@ -8,6 +9,7 @@ import pytest
 from aipro.config import Settings
 from aipro.crypto.application import CryptoTradingApplication
 from aipro.crypto.market import MarketDataError, UpbitMarketData, UpbitPublicClient
+from aipro.crypto.market_health import HealthCheckedMarketData
 
 
 class FakeResponse:
@@ -24,18 +26,30 @@ class FakeResponse:
         return None
 
 
-def _candle(symbol: str, price: float) -> dict[str, object]:
-    return {"market": symbol, "trade_price": price}
+def _ticker(symbol: str, price: float, timestamp_ms: int = 1_768_521_600_000) -> dict[str, object]:
+    return {"market": symbol, "trade_price": price, "timestamp": timestamp_ms}
 
 
-def test_upbit_market_data_builds_strategy_snapshots() -> None:
+def _candle(
+    symbol: str,
+    price: float,
+    timestamp: str,
+) -> dict[str, object]:
+    return {
+        "market": symbol,
+        "trade_price": price,
+        "candle_date_time_utc": timestamp,
+    }
+
+
+def test_upbit_market_data_builds_timestamped_strategy_snapshots() -> None:
     responses = [
-        FakeResponse([{"market": "KRW-BTC", "trade_price": 110.0}]),
+        FakeResponse([_ticker("KRW-BTC", 110.0)]),
         FakeResponse(
             [
-                _candle("KRW-BTC", 109.0),
-                _candle("KRW-BTC", 100.0),
-                _candle("KRW-BTC", 95.0),
+                _candle("KRW-BTC", 109.0, "2026-01-15T00:00:00"),
+                _candle("KRW-BTC", 100.0, "2026-01-14T23:00:00"),
+                _candle("KRW-BTC", 95.0, "2026-01-14T22:00:00"),
             ]
         ),
     ]
@@ -56,6 +70,12 @@ def test_upbit_market_data_builds_strategy_snapshots() -> None:
     assert snapshots[0].price == 110.0
     assert snapshots[0].change_1h_pct == pytest.approx(10.0)
     assert snapshots[0].volatility_pct >= 0.0
+    assert snapshots[0].ticker_timestamp == datetime(
+        2026, 1, 15, tzinfo=timezone.utc
+    )
+    assert snapshots[0].candle_timestamp == datetime(
+        2026, 1, 15, tzinfo=timezone.utc
+    )
     assert "/v1/ticker?markets=KRW-BTC" in urls[0]
     assert "/v1/candles/minutes/60?market=KRW-BTC&count=3" in urls[1]
 
@@ -69,7 +89,7 @@ def test_public_client_retries_transient_transport_failure() -> None:
         calls += 1
         if calls == 1:
             raise URLError("temporary")
-        return FakeResponse([{"market": "KRW-BTC", "trade_price": 100.0}])
+        return FakeResponse([_ticker("KRW-BTC", 100.0)])
 
     client = UpbitPublicClient(
         max_attempts=2,
@@ -101,9 +121,7 @@ def test_public_client_raises_after_retry_exhaustion() -> None:
 
 
 def test_invalid_or_incomplete_upbit_payload_is_rejected() -> None:
-    responses = [
-        FakeResponse([{"market": "KRW-ETH", "trade_price": 100.0}]),
-    ]
+    responses = [FakeResponse([_ticker("KRW-ETH", 100.0)])]
 
     def opener(request, timeout: float):
         return responses.pop(0)
@@ -117,6 +135,45 @@ def test_invalid_or_incomplete_upbit_payload_is_rejected() -> None:
         market.snapshots()
 
 
+def test_missing_ticker_timestamp_is_rejected() -> None:
+    responses = [FakeResponse([{"market": "KRW-BTC", "trade_price": 100.0}])]
+
+    def opener(request, timeout: float):
+        return responses.pop(0)
+
+    market = UpbitMarketData(
+        symbols=("KRW-BTC",),
+        client=UpbitPublicClient(max_attempts=1, opener=opener),
+    )
+
+    with pytest.raises(MarketDataError, match="invalid Upbit ticker item"):
+        market.snapshots()
+
+
+def test_duplicate_or_out_of_order_candle_timestamp_is_rejected() -> None:
+    responses = [
+        FakeResponse([_ticker("KRW-BTC", 110.0)]),
+        FakeResponse(
+            [
+                _candle("KRW-BTC", 109.0, "2026-01-15T00:00:00"),
+                _candle("KRW-BTC", 100.0, "2026-01-15T00:00:00"),
+            ]
+        ),
+    ]
+
+    def opener(request, timeout: float):
+        return responses.pop(0)
+
+    market = UpbitMarketData(
+        symbols=("KRW-BTC",),
+        client=UpbitPublicClient(max_attempts=1, opener=opener),
+        candle_count=2,
+    )
+
+    with pytest.raises(MarketDataError, match="newest-first"):
+        market.snapshots()
+
+
 def test_upbit_provider_is_opt_in_and_does_not_enable_live(tmp_path) -> None:
     settings = Settings(
         db_path=tmp_path / "aipro.db",
@@ -127,7 +184,8 @@ def test_upbit_provider_is_opt_in_and_does_not_enable_live(tmp_path) -> None:
 
     app = CryptoTradingApplication(settings)
 
-    assert isinstance(app.market, UpbitMarketData)
+    assert isinstance(app.market, HealthCheckedMarketData)
+    assert isinstance(app.market.delegate, UpbitMarketData)
     assert app.settings.mode == "PAPER"
     assert app.settings.enable_live_trading is False
 
