@@ -14,7 +14,7 @@ Safe-by-default automated crypto trading MVP.
 - Baseline momentum strategy
 - Position sizing and persistent daily-loss HALT latch
 - KST daily baseline persistence
-- Paper broker
+- Persistent paper cash, positions, and transaction history
 - SQLite event and application-state storage
 - Authenticated Telegram commands
 - File and console logging
@@ -46,6 +46,10 @@ Supported commands:
 - `/help` — show commands
 
 Unknown or unauthorized chat IDs cannot execute commands. `/go` does not alter the baseline when the application is already ready.
+
+## Persistent paper account
+
+The paper broker stores cash, positions, average prices, and transaction history in the configured SQLite database. A restarted process restores the latest paper account instead of resetting simulated capital. Use only one AiPro process per database file until multi-process locking and reconciliation are implemented.
 
 ## Test
 

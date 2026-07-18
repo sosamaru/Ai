@@ -1,6 +1,6 @@
 # AiPro Project Roadmap
 
-Updated: 2026-07-17
+Updated: 2026-07-18
 
 ## Project goal
 
@@ -18,7 +18,7 @@ Development order:
 
 ## Current status
 
-Overall completion: **34%**
+Overall completion: **38%**
 
 ### Completed
 
@@ -40,12 +40,15 @@ Overall completion: **34%**
 - [x] Standard-library Telegram long polling with retry
 - [x] Configuration, persistent-state, and Telegram router tests
 - [x] GitHub Actions pytest workflow
+- [x] Persistent paper cash and positions
+- [x] Immutable paper transaction history
+- [x] Paper-account restoration at application startup
+- [x] Corrupted paper-account state validation
+- [x] Restart and forced-liquidation persistence tests
 
 ### In progress
 
-- [ ] Confirm a successful GitHub Actions test result
-- [ ] Application-level forced-liquidation coverage
-- [ ] Persistent paper-broker cash and positions
+- [ ] Confirm a successful GitHub Actions test result for persistent paper-account changes
 - [ ] Position/order reconciliation
 - [ ] Idempotent order lifecycle
 - [ ] Retry and timeout policy for broker operations
@@ -69,38 +72,42 @@ Overall completion: **34%**
 1. KST date and daily baseline survive process restarts.
 2. Daily-loss HALTED survives restarts and date changes.
 3. Only explicit resume clears HALTED and creates a new baseline.
-4. Telegram is disabled when no token is configured; console mode runs one cycle.
-5. A configured token without authorized chat IDs fails closed at startup.
-6. Unauthorized chat IDs cannot inspect or change application state.
-7. `/run_once` is rejected while HALTED.
-8. `/go` only changes state when HALTED; repeated `/go` cannot silently rebase equity.
-9. Telegram uses HTTPS Bot API long polling and retries transient failures.
-10. Real exchange orders remain unimplemented and disabled.
+4. Paper cash, positions, and transaction history survive process restarts.
+5. Paper-account updates are committed atomically in SQLite.
+6. Invalid negative cash or non-positive positions fail closed during restoration.
+7. Forced liquidation persists the empty position state before restart.
+8. Telegram is disabled when no token is configured; console mode runs one cycle.
+9. A configured token without authorized chat IDs fails closed at startup.
+10. Unauthorized chat IDs cannot inspect or change application state.
+11. `/run_once` is rejected while HALTED.
+12. `/go` only changes state when HALTED; repeated `/go` cannot silently rebase equity.
+13. Telegram uses HTTPS Bot API long polling and retries transient failures.
+14. Real exchange orders remain unimplemented and disabled.
 
 ## Current gaps and risks
 
-1. Paper broker cash and positions are still memory-only and reset after restart.
-2. Telegram bot tokens remain environment-managed; a production secret manager is not integrated.
-3. Telegram uses a single-process polling loop without process supervision.
-4. Broker operations do not implement idempotency, reconciliation, partial fills, or retries.
+1. Broker operations do not yet implement client order IDs, reconciliation, partial fills, or retries.
+2. SQLite persistence is process-local and does not provide distributed locking for multiple application instances.
+3. Telegram bot tokens remain environment-managed; a production secret manager is not integrated.
+4. Telegram uses a single-process polling loop without process supervision.
 5. The application still uses demo market data and a paper broker only.
-6. A successful CI run has not yet been confirmed in this document.
+6. A successful CI run for this branch has not yet been confirmed in this document.
 7. The three-step live approval flow is intentionally not implemented yet.
 
 ## Immediate priority
 
-### P0 — Persist paper account state
+### P0 — Verify persistent paper account
 
-- Persist cash, positions, average prices, and transaction history.
-- Restore paper account state at startup.
-- Reconcile impossible or corrupted state safely.
-- Add restart and forced-liquidation tests.
+- Confirm the full pytest suite in GitHub Actions.
+- Review SQLite behavior under abrupt process termination.
+- Keep only one active AiPro process per database file.
 
 ### P1 — Order safety foundation
 
 - Add idempotent client order identifiers.
 - Define order states and immutable transaction records.
 - Add bounded retry and timeout policies.
+- Add startup reconciliation between intended orders and broker state.
 
 ### P2 — Validation foundation
 
@@ -120,4 +127,4 @@ A task is complete only when implementation, tests, documentation, limitations, 
 
 ## Next action
 
-Persist the paper broker account and positions in SQLite so process restarts cannot reset simulated capital or bypass risk accounting.
+Run the complete pytest suite in GitHub Actions, then begin the idempotent order lifecycle and reconciliation foundation without enabling real exchange orders.
