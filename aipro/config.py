@@ -43,6 +43,9 @@ class Settings:
     crypto_symbols: tuple[str, ...] = ("KRW-BTC", "KRW-ETH", "KRW-XRP")
     market_data_timeout_sec: float = 5.0
     market_data_max_attempts: int = 3
+    market_data_max_latency_sec: float = 10.0
+    market_data_max_snapshot_age_sec: float = 120.0
+    market_data_max_consecutive_failures: int = 3
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -59,22 +62,15 @@ class Settings:
             live_confirm=os.getenv("AIPRO_LIVE_CONFIRM", "NO").upper(),
             enable_live_trading=os.getenv("ENABLE_LIVE_TRADING", "0") == "1",
             telegram_bot_token=os.getenv("AIPRO_TELEGRAM_BOT_TOKEN", "").strip(),
-            telegram_allowed_chat_ids=_parse_chat_ids(
-                os.getenv("AIPRO_TELEGRAM_ALLOWED_CHAT_IDS", "")
-            ),
-            telegram_poll_timeout_sec=int(
-                os.getenv("AIPRO_TELEGRAM_POLL_TIMEOUT_SEC", "25")
-            ),
+            telegram_allowed_chat_ids=_parse_chat_ids(os.getenv("AIPRO_TELEGRAM_ALLOWED_CHAT_IDS", "")),
+            telegram_poll_timeout_sec=int(os.getenv("AIPRO_TELEGRAM_POLL_TIMEOUT_SEC", "25")),
             market_data_provider=os.getenv("AIPRO_MARKET_DATA_PROVIDER", "DEMO").upper(),
-            crypto_symbols=_parse_symbols(
-                os.getenv("AIPRO_CRYPTO_SYMBOLS", "KRW-BTC,KRW-ETH,KRW-XRP")
-            ),
-            market_data_timeout_sec=float(
-                os.getenv("AIPRO_MARKET_DATA_TIMEOUT_SEC", "5.0")
-            ),
-            market_data_max_attempts=int(
-                os.getenv("AIPRO_MARKET_DATA_MAX_ATTEMPTS", "3")
-            ),
+            crypto_symbols=_parse_symbols(os.getenv("AIPRO_CRYPTO_SYMBOLS", "KRW-BTC,KRW-ETH,KRW-XRP")),
+            market_data_timeout_sec=float(os.getenv("AIPRO_MARKET_DATA_TIMEOUT_SEC", "5.0")),
+            market_data_max_attempts=int(os.getenv("AIPRO_MARKET_DATA_MAX_ATTEMPTS", "3")),
+            market_data_max_latency_sec=float(os.getenv("AIPRO_MARKET_DATA_MAX_LATENCY_SEC", "10.0")),
+            market_data_max_snapshot_age_sec=float(os.getenv("AIPRO_MARKET_DATA_MAX_SNAPSHOT_AGE_SEC", "120.0")),
+            market_data_max_consecutive_failures=int(os.getenv("AIPRO_MARKET_DATA_MAX_CONSECUTIVE_FAILURES", "3")),
         )
         settings.validate()
         return settings
@@ -102,13 +98,13 @@ class Settings:
             raise ValueError("market_data_timeout_sec must be positive")
         if not 1 <= self.market_data_max_attempts <= 5:
             raise ValueError("market_data_max_attempts must be between 1 and 5")
+        if self.market_data_max_latency_sec <= 0:
+            raise ValueError("market_data_max_latency_sec must be positive")
+        if self.market_data_max_snapshot_age_sec <= 0:
+            raise ValueError("market_data_max_snapshot_age_sec must be positive")
+        if not 1 <= self.market_data_max_consecutive_failures <= 100:
+            raise ValueError("market_data_max_consecutive_failures must be between 1 and 100")
         if self.telegram_bot_token and not self.telegram_allowed_chat_ids:
-            raise RuntimeError(
-                "Telegram blocked: configure AIPRO_TELEGRAM_ALLOWED_CHAT_IDS"
-            )
-        if self.mode == "LIVE" and not (
-            self.live_confirm == "YES" and self.enable_live_trading
-        ):
-            raise RuntimeError(
-                "LIVE blocked: set AIPRO_LIVE_CONFIRM=YES and ENABLE_LIVE_TRADING=1"
-            )
+            raise RuntimeError("Telegram blocked: configure AIPRO_TELEGRAM_ALLOWED_CHAT_IDS")
+        if self.mode == "LIVE" and not (self.live_confirm == "YES" and self.enable_live_trading):
+            raise RuntimeError("LIVE blocked: set AIPRO_LIVE_CONFIRM=YES and ENABLE_LIVE_TRADING=1")

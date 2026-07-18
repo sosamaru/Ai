@@ -35,7 +35,7 @@ Each asset domain must pass this sequence independently. Capital, broker state, 
 
 ## Current status
 
-Overall completion: **78%**
+Overall completion: **80%**
 
 ### Completed
 
@@ -53,13 +53,16 @@ Overall completion: **78%**
 - [x] Batched ticker retrieval plus validated 60-minute candle momentum and volatility features
 - [x] Bounded public-market-data timeout and retry handling
 - [x] Opt-in `UPBIT` provider with deterministic `DEMO` remaining the default
+- [x] Market-data latency, failure-count, last-success age, and status reporting gate
+- [x] Fail-closed strategy/PAPER execution on unhealthy market data
+- [x] Failed market-data cycle abort and immutable audit event
 - [x] GitHub Actions regression tests for all completed components
 
 ### In progress
 
 - [ ] Complete remaining compatibility cleanup for legacy root-level crypto imports
 - [ ] Validate Upbit public market data during sustained supervised PAPER operation
-- [ ] Add market-data health and staleness reporting
+- [ ] Carry exchange ticker/candle timestamps into validated snapshots
 
 ### Not started
 
@@ -96,14 +99,16 @@ Overall completion: **78%**
 4. `AIPRO_MARKET_DATA_PROVIDER=DEMO` is the safe default and performs no network calls.
 5. `AIPRO_MARKET_DATA_PROVIDER=UPBIT` changes only the crypto price source and uses public quotation endpoints without credentials.
 6. Upbit current prices are retrieved in one ticker request; recent 60-minute candles are retrieved per configured symbol.
-7. Missing, malformed, duplicate, non-positive, non-finite, or mismatched public data fails closed with `MarketDataError`.
-8. Market-data retry attempts and timeout are bounded.
-9. Selecting Upbit market data does not enable account access or order submission.
-10. Archived completed PAPER orders remain immutable and continue to participate in duplicate-ID checks and reconciliation.
+7. Missing, malformed, duplicate, non-positive, non-finite, or mismatched public data fails closed.
+8. Market-data retry attempts, timeout, latency, and consecutive failures are bounded.
+9. Provider health is exposed in application and Telegram status output.
+10. An unhealthy provider blocks strategy decisions and PAPER orders and records a failed-cycle audit event.
+11. Selecting Upbit market data does not enable account access or order submission.
+12. Archived completed PAPER orders remain immutable and continue to participate in duplicate-ID checks and reconciliation.
 
 ## Current gaps and risks
 
-1. REST market polling has no staleness timestamp gate or latency health monitor yet.
+1. Freshness currently measures time since AiPro's last validated successful snapshot, not the exchange source timestamp.
 2. Candle intervals with no trades may be absent; sparse markets can fail validation.
 3. Hourly return volatility is a basic feature and is not evidence of predictive value.
 4. Backtests still use fixed slippage and do not model order-book depth or partial fills.
@@ -115,12 +120,12 @@ Overall completion: **78%**
 
 ## Immediate priority
 
-### P0 — Upbit market-data health gate
+### P0 — Exchange timestamp validation
 
-- Track response timestamp, request latency, and consecutive failures.
-- Reject stale ticker/candle data before strategy execution.
-- Expose provider health in application status and Telegram `/status`.
-- Add supervised PAPER soak-test evidence without enabling LIVE trading.
+- Parse and validate Upbit ticker and candle timestamps.
+- Reject exchange data older than the configured age before strategy execution.
+- Detect future timestamps and inconsistent symbol timestamps.
+- Preserve source timestamps in health and audit reports.
 
 ### P1 — Authenticated Upbit read-only account boundary
 
@@ -146,4 +151,4 @@ A task is complete only when implementation, tests, documentation, limitations, 
 
 ## Next action
 
-Merge the Upbit read-only quotation adapter after CI, then implement the market-data health and staleness gate before any authenticated exchange integration.
+Merge the market-data health gate after CI, then add direct exchange ticker/candle timestamp validation before authenticated exchange integration.
