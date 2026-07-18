@@ -6,6 +6,7 @@ import statistics
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any, Protocol
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -95,14 +96,21 @@ class UpbitPublicClient:
         raise MarketDataError(f"Upbit public API request failed: {path}") from last_error
 
 
+@dataclass(frozen=True, slots=True)
+class TickerPoint:
+    price: float
+    timestamp: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class CandleSeries:
+    closes: list[float]
+    newest_timestamp: datetime
+
+
 @dataclass(slots=True)
 class UpbitMarketData:
-    """Read-only Upbit market adapter producing strategy-compatible snapshots.
-
-    Current prices are fetched in one ticker request. Each configured symbol then
-    uses recent 60-minute candles to calculate one-hour momentum and hourly return
-    volatility. No API key, account endpoint, or order endpoint is used.
-    """
+    """Read-only Upbit market adapter producing timestamped snapshots."""
 
     symbols: tuple[str, ...] = DEFAULT_UPBIT_SYMBOLS
     client: UpbitPublicClient = UpbitPublicClient()
@@ -125,7 +133,7 @@ class UpbitMarketData:
             "/v1/ticker",
             {"markets": ",".join(self.symbols)},
         )
-        tickers = self._ticker_prices(ticker_payload)
+        tickers = self._ticker_points(ticker_payload)
 
         snapshots: list[MarketSnapshot] = []
         for symbol in self.symbols:
@@ -135,57 +143,90 @@ class UpbitMarketData:
                 "/v1/candles/minutes/60",
                 {"market": symbol, "count": self.candle_count},
             )
-            closes = self._candle_closes(candle_payload, symbol)
-            price = tickers[symbol]
-            change_1h_pct = (price / closes[1] - 1.0) * 100.0
-            volatility_pct = self._return_volatility_pct(closes)
+            candles = self._candle_series(candle_payload, symbol)
+            ticker = tickers[symbol]
+            change_1h_pct = (ticker.price / candles.closes[1] - 1.0) * 100.0
+            volatility_pct = self._return_volatility_pct(candles.closes)
             snapshots.append(
                 MarketSnapshot(
                     symbol=symbol,
-                    price=price,
+                    price=ticker.price,
                     change_1h_pct=change_1h_pct,
                     volatility_pct=volatility_pct,
+                    ticker_timestamp=ticker.timestamp,
+                    candle_timestamp=candles.newest_timestamp,
                 )
             )
         return snapshots
 
     @staticmethod
-    def _ticker_prices(payload: object) -> dict[str, float]:
+    def _ticker_points(payload: object) -> dict[str, TickerPoint]:
         if not isinstance(payload, list) or not payload:
             raise MarketDataError("Upbit ticker response must be a non-empty list")
-        prices: dict[str, float] = {}
+        points: dict[str, TickerPoint] = {}
         for item in payload:
             if not isinstance(item, dict):
                 raise MarketDataError("Upbit ticker item must be an object")
             try:
                 symbol = str(item["market"]).upper()
                 price = float(item["trade_price"])
-            except (KeyError, TypeError, ValueError) as exc:
+                timestamp = UpbitMarketData._timestamp_from_millis(item["timestamp"])
+            except (KeyError, TypeError, ValueError, OverflowError) as exc:
                 raise MarketDataError("invalid Upbit ticker item") from exc
             if not symbol or not math.isfinite(price) or price <= 0:
                 raise MarketDataError("invalid Upbit ticker price")
-            if symbol in prices:
+            if symbol in points:
                 raise MarketDataError(f"duplicate Upbit ticker symbol: {symbol}")
-            prices[symbol] = price
-        return prices
+            points[symbol] = TickerPoint(price=price, timestamp=timestamp)
+        return points
 
     @staticmethod
-    def _candle_closes(payload: object, symbol: str) -> list[float]:
+    def _candle_series(payload: object, symbol: str) -> CandleSeries:
         if not isinstance(payload, list) or len(payload) < 2:
             raise MarketDataError(f"insufficient Upbit hourly candles: {symbol}")
         closes: list[float] = []
+        newest_timestamp: datetime | None = None
+        previous_timestamp: datetime | None = None
         for item in payload:
             if not isinstance(item, dict):
                 raise MarketDataError("Upbit candle item must be an object")
             try:
                 market = str(item["market"]).upper()
                 close = float(item["trade_price"])
+                timestamp = UpbitMarketData._timestamp_from_utc_text(
+                    item["candle_date_time_utc"]
+                )
             except (KeyError, TypeError, ValueError) as exc:
                 raise MarketDataError("invalid Upbit candle item") from exc
             if market != symbol or not math.isfinite(close) or close <= 0:
                 raise MarketDataError(f"invalid Upbit candle for {symbol}")
+            if previous_timestamp is not None and timestamp >= previous_timestamp:
+                raise MarketDataError(
+                    f"Upbit candles must be newest-first with unique timestamps: {symbol}"
+                )
+            if newest_timestamp is None:
+                newest_timestamp = timestamp
+            previous_timestamp = timestamp
             closes.append(close)
-        return closes
+        assert newest_timestamp is not None
+        return CandleSeries(closes=closes, newest_timestamp=newest_timestamp)
+
+    @staticmethod
+    def _timestamp_from_millis(value: object) -> datetime:
+        milliseconds = float(value)
+        if not math.isfinite(milliseconds) or milliseconds <= 0:
+            raise ValueError("timestamp must be a positive finite number")
+        return datetime.fromtimestamp(milliseconds / 1000.0, tz=timezone.utc)
+
+    @staticmethod
+    def _timestamp_from_utc_text(value: object) -> datetime:
+        text = str(value).strip()
+        if not text:
+            raise ValueError("timestamp text is empty")
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
 
     @staticmethod
     def _return_volatility_pct(closes_newest_first: list[float]) -> float:
