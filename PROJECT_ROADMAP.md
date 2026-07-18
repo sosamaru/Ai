@@ -35,7 +35,7 @@ Each asset domain must pass this sequence independently. Capital, broker state, 
 
 ## Current status
 
-Overall completion: **80%**
+Overall completion: **82%**
 
 ### Completed
 
@@ -56,13 +56,15 @@ Overall completion: **80%**
 - [x] Market-data latency, failure-count, last-success age, and status reporting gate
 - [x] Fail-closed strategy/PAPER execution on unhealthy market data
 - [x] Failed market-data cycle abort and immutable audit event
+- [x] Upbit ticker/candle source timestamp parsing and preservation
+- [x] Fail-closed rejection of missing, naive, stale, future, and inconsistent exchange timestamps
+- [x] Exchange source timestamp and source-age health reporting
 - [x] GitHub Actions regression tests for all completed components
 
 ### In progress
 
 - [ ] Complete remaining compatibility cleanup for legacy root-level crypto imports
 - [ ] Validate Upbit public market data during sustained supervised PAPER operation
-- [ ] Carry exchange ticker/candle timestamps into validated snapshots
 
 ### Not started
 
@@ -99,46 +101,46 @@ Overall completion: **80%**
 4. `AIPRO_MARKET_DATA_PROVIDER=DEMO` is the safe default and performs no network calls.
 5. `AIPRO_MARKET_DATA_PROVIDER=UPBIT` changes only the crypto price source and uses public quotation endpoints without credentials.
 6. Upbit current prices are retrieved in one ticker request; recent 60-minute candles are retrieved per configured symbol.
-7. Missing, malformed, duplicate, non-positive, non-finite, or mismatched public data fails closed.
-8. Market-data retry attempts, timeout, latency, and consecutive failures are bounded.
-9. Provider health is exposed in application and Telegram status output.
-10. An unhealthy provider blocks strategy decisions and PAPER orders and records a failed-cycle audit event.
-11. Selecting Upbit market data does not enable account access or order submission.
-12. Archived completed PAPER orders remain immutable and continue to participate in duplicate-ID checks and reconciliation.
+7. Missing, malformed, duplicate, non-positive, non-finite, mismatched, or incorrectly ordered public data fails closed.
+8. Upbit ticker and candle timestamps are normalized to timezone-aware UTC values and carried in each snapshot.
+9. Missing, stale, future, naive, or inconsistent exchange timestamps block strategy decisions and PAPER orders.
+10. Market-data retry attempts, timeout, latency, source age, and consecutive failures are bounded and reported.
+11. An unhealthy provider blocks strategy decisions and PAPER orders and records a failed-cycle audit event.
+12. Selecting Upbit market data does not enable account access or order submission.
+13. Archived completed PAPER orders remain immutable and continue to participate in duplicate-ID checks and reconciliation.
 
 ## Current gaps and risks
 
-1. Freshness currently measures time since AiPro's last validated successful snapshot, not the exchange source timestamp.
-2. Candle intervals with no trades may be absent; sparse markets can fail validation.
-3. Hourly return volatility is a basic feature and is not evidence of predictive value.
-4. Backtests still use fixed slippage and do not model order-book depth or partial fills.
-5. Open positions are marked to the latest supplied price at backtest end rather than forcibly liquidated.
-6. Real account authentication and exchange order reconciliation remain unimplemented.
+1. Upbit candle intervals with no trades may be absent; sparse markets can fail validation.
+2. Hourly return volatility is a basic feature and is not evidence of predictive value.
+3. Backtests still use fixed slippage and do not model order-book depth or partial fills.
+4. Open positions are marked to the latest supplied price at backtest end rather than forcibly liquidated.
+5. Real account authentication and exchange order reconciliation remain unimplemented.
+6. Exchange timestamps are validated against a single configured age threshold; sustained PAPER operation is still needed to tune tolerance safely.
 7. Archived evidence has no signed export and deletion policy; automatic deletion remains disabled.
 8. US-stock broker, data, calendar, FX, tax, and fractional-share behavior remain unimplemented.
 9. Legacy baseline keys remain for rollback compatibility and need a retirement version before removal.
 
 ## Immediate priority
 
-### P0 — Exchange timestamp validation
-
-- Parse and validate Upbit ticker and candle timestamps.
-- Reject exchange data older than the configured age before strategy execution.
-- Detect future timestamps and inconsistent symbol timestamps.
-- Preserve source timestamps in health and audit reports.
-
-### P1 — Authenticated Upbit read-only account boundary
+### P0 — Authenticated Upbit read-only account boundary
 
 - Add credential loading without logging secrets.
 - Implement account and order lookup only; no order creation.
 - Keep private endpoints isolated from the public market adapter.
-- Add timeout reconciliation and permission-failure tests.
+- Add timeout, authentication, permission-failure, and response-validation tests.
 
-### P2 — Supervised crypto PAPER validation
+### P1 — Supervised crypto PAPER validation
 
 - Run validated historical datasets through the readiness gate.
 - Record dataset fingerprint, strategy/config version, and PAPER observation period.
-- Require stable restart, reconciliation, HALTED, and provider-health behavior.
+- Require stable restart, reconciliation, HALTED, provider-health, and source-timestamp behavior.
+
+### P2 — Exchange order reconciliation design
+
+- Define timeout lookup and immutable exchange-order identity rules.
+- Prevent duplicate submission after ambiguous network outcomes.
+- Keep submission disabled until authenticated read-only inspection is proven.
 
 ### P3 — US-stock public data research
 
@@ -151,4 +153,4 @@ A task is complete only when implementation, tests, documentation, limitations, 
 
 ## Next action
 
-Merge the market-data health gate after CI, then add direct exchange ticker/candle timestamp validation before authenticated exchange integration.
+Merge exchange timestamp validation after final CI, then implement an isolated authenticated Upbit read-only account client with no order-creation capability.
