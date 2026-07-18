@@ -3,6 +3,7 @@ from datetime import date
 import pytest
 
 from aipro.app import ACTIVE_CYCLE_STATE_KEY, TradingApplication
+from aipro.broker import PaperBroker
 from aipro.config import Settings
 from aipro.models import OrderSide
 
@@ -39,18 +40,24 @@ def test_interrupted_cycle_reuses_order_ids_after_restart(tmp_path, monkeypatch)
     settings = _settings(tmp_path)
     trading_date = date(2026, 7, 18)
     app = TradingApplication(settings, date_provider=lambda: trading_date)
-    original_submit_buy = app.broker.submit_buy
+    original_submit_buy = PaperBroker.submit_buy
+    interrupted = False
 
     def fill_then_interrupt(
+        broker: PaperBroker,
         client_order_id: str,
         symbol: str,
         price: float,
         amount_krw: int,
     ):
-        order = original_submit_buy(client_order_id, symbol, price, amount_krw)
-        raise RuntimeError("simulated process interruption after fill")
+        nonlocal interrupted
+        order = original_submit_buy(broker, client_order_id, symbol, price, amount_krw)
+        if broker is app.broker and not interrupted:
+            interrupted = True
+            raise RuntimeError("simulated process interruption after fill")
+        return order
 
-    monkeypatch.setattr(app.broker, "submit_buy", fill_then_interrupt)
+    monkeypatch.setattr(PaperBroker, "submit_buy", fill_then_interrupt)
 
     with pytest.raises(RuntimeError, match="simulated process interruption after fill"):
         app.run_once()
