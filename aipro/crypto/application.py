@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 from aipro.app import TradingApplication as LegacyTradingApplication
 from aipro.crypto.broker import PaperBroker
 from aipro.crypto.config import CryptoSettings
-from aipro.crypto.market import DemoMarketData
+from aipro.crypto.market import DemoMarketData, UpbitMarketData, UpbitPublicClient
 from aipro.crypto.strategy import MomentumStrategy
 from aipro.risk import RiskManager
 from aipro.storage import Storage
@@ -30,7 +30,16 @@ class CryptoTradingApplication(LegacyTradingApplication):
     ) -> None:
         self.settings = settings
         self.storage = Storage(settings.db_path)
-        self.market = DemoMarketData()
+        if settings.market_data_provider == "UPBIT":
+            self.market = UpbitMarketData(
+                symbols=settings.crypto_symbols,
+                client=UpbitPublicClient(
+                    timeout_sec=settings.market_data_timeout_sec,
+                    max_attempts=settings.market_data_max_attempts,
+                ),
+            )
+        else:
+            self.market = DemoMarketData()
         self.strategy = MomentumStrategy()
         self.broker = PaperBroker.restore(float(settings.initial_cash_krw), self.storage)
         self._date_provider = date_provider or (lambda: datetime.now(KST).date())
