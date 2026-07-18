@@ -1,9 +1,7 @@
-"""Crypto-specific configuration, adapters, and strategies.
-
-Existing AiPro runtime behavior remains crypto-first while modules are migrated into
-this package incrementally without breaking run.py -> telegram.py -> main.py.
-"""
+"""Crypto-specific configuration, adapters, market data, and strategies."""
 
 from aipro.crypto.domain import CRYPTO_DOMAIN
+from aipro.crypto.market import DemoMarketData
+from aipro.crypto.strategy import MomentumStrategy
 
-__all__ = ["CRYPTO_DOMAIN"]
+__all__ = ["CRYPTO_DOMAIN", "DemoMarketData", "MomentumStrategy"]
