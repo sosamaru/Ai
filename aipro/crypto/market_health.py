@@ -42,6 +42,7 @@ class HealthCheckedMarketData:
     last_success_at: datetime | None = None
     last_failure_at: datetime | None = None
     last_latency_sec: float | None = None
+    last_source_timestamp_at: datetime | None = None
     last_error: str | None = None
 
     def snapshots(self) -> list[MarketSnapshot]:
@@ -55,6 +56,7 @@ class HealthCheckedMarketData:
                 )
             if not snapshots:
                 raise MarketDataHealthError("market data returned no snapshots")
+            source_timestamp = self._validate_source_timestamps(snapshots)
         except Exception as exc:
             self.consecutive_failures += 1
             self.last_failure_at = self.now()
@@ -64,8 +66,48 @@ class HealthCheckedMarketData:
         self.consecutive_failures = 0
         self.last_success_at = self.now()
         self.last_latency_sec = latency
+        self.last_source_timestamp_at = source_timestamp
         self.last_error = None
         return snapshots
+
+    def _validate_source_timestamps(
+        self, snapshots: list[MarketSnapshot]
+    ) -> datetime | None:
+        timestamps: list[datetime] = []
+        require_exchange_timestamps = self.provider_name.upper() == "UPBIT"
+        current = self.now()
+        for snapshot in snapshots:
+            pair = (snapshot.ticker_timestamp, snapshot.candle_timestamp)
+            if require_exchange_timestamps and any(value is None for value in pair):
+                raise MarketDataHealthError(
+                    f"missing exchange timestamp for {snapshot.symbol}"
+                )
+            for value in pair:
+                if value is None:
+                    continue
+                if value.tzinfo is None:
+                    raise MarketDataHealthError(
+                        f"naive exchange timestamp for {snapshot.symbol}"
+                    )
+                normalized = value.astimezone(timezone.utc)
+                age = (current - normalized).total_seconds()
+                if age < -1.0:
+                    raise MarketDataHealthError(
+                        f"future exchange timestamp for {snapshot.symbol}: age={age:.1f}s"
+                    )
+                if age > self.policy.max_snapshot_age_sec:
+                    raise MarketDataHealthError(
+                        f"stale exchange timestamp for {snapshot.symbol}: age={age:.1f}s"
+                    )
+                timestamps.append(normalized)
+        if not timestamps:
+            return None
+        spread = (max(timestamps) - min(timestamps)).total_seconds()
+        if spread > self.policy.max_snapshot_age_sec:
+            raise MarketDataHealthError(
+                f"inconsistent exchange timestamps: spread={spread:.1f}s"
+            )
+        return max(timestamps)
 
     def assert_fresh(self) -> None:
         if self.last_success_at is None:
@@ -73,6 +115,12 @@ class HealthCheckedMarketData:
         age = (self.now() - self.last_success_at).total_seconds()
         if age < 0 or age > self.policy.max_snapshot_age_sec:
             raise MarketDataHealthError(f"market data snapshot is stale: age={age:.1f}s")
+        if self.last_source_timestamp_at is not None:
+            source_age = (self.now() - self.last_source_timestamp_at).total_seconds()
+            if source_age < -1.0 or source_age > self.policy.max_snapshot_age_sec:
+                raise MarketDataHealthError(
+                    f"exchange source timestamp is stale: age={source_age:.1f}s"
+                )
         if self.consecutive_failures >= self.policy.max_consecutive_failures:
             raise MarketDataHealthError(
                 f"market data consecutive failures reached {self.consecutive_failures}"
@@ -80,12 +128,21 @@ class HealthCheckedMarketData:
 
     def health_status(self) -> dict[str, object]:
         age_sec: float | None = None
+        source_age_sec: float | None = None
         if self.last_success_at is not None:
             age_sec = max(0.0, (self.now() - self.last_success_at).total_seconds())
+        if self.last_source_timestamp_at is not None:
+            source_age_sec = max(
+                0.0, (self.now() - self.last_source_timestamp_at).total_seconds()
+            )
         healthy = (
             self.last_error is None
             and self.consecutive_failures < self.policy.max_consecutive_failures
             and (age_sec is None or age_sec <= self.policy.max_snapshot_age_sec)
+            and (
+                source_age_sec is None
+                or source_age_sec <= self.policy.max_snapshot_age_sec
+            )
             and (
                 self.last_latency_sec is None
                 or self.last_latency_sec <= self.policy.max_latency_sec
@@ -102,7 +159,11 @@ class HealthCheckedMarketData:
             "last_failure_at": None
             if self.last_failure_at is None
             else self.last_failure_at.isoformat(),
+            "last_source_timestamp_at": None
+            if self.last_source_timestamp_at is None
+            else self.last_source_timestamp_at.isoformat(),
             "snapshot_age_sec": age_sec,
+            "source_age_sec": source_age_sec,
             "last_error": self.last_error,
         }
 
