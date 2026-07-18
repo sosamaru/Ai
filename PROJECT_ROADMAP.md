@@ -35,7 +35,7 @@ Each asset domain must pass this sequence independently. Capital, broker state, 
 
 ## Current status
 
-Overall completion: **82%**
+Overall completion: **84%**
 
 ### Completed
 
@@ -46,31 +46,31 @@ Overall completion: **82%**
 - [x] Read-only reconciliation and bounded broker retry policy
 - [x] Deterministic historical replay with fees, slippage, sizing, drawdown, win rate, exposure, and reports
 - [x] Strict CSV historical-data loader with schema validation and SHA-256 fingerprinting
-- [x] Independent PAPER-readiness PASS/FAIL reports with sample, trade, return, drawdown, exposure, regime, and out-of-sample checks
-- [x] Immutable completed-order archive with active retention, duplicate-ID protection, restart recovery, and full reconciliation
+- [x] Independent PAPER-readiness PASS/FAIL reports
+- [x] Immutable completed-order archive with duplicate-ID protection and restart recovery
 - [x] Disabled-by-default US-stock domain and separate namespace/capital policy
 - [x] Upbit unauthenticated read-only quotation adapter
-- [x] Batched ticker retrieval plus validated 60-minute candle momentum and volatility features
-- [x] Bounded public-market-data timeout and retry handling
-- [x] Opt-in `UPBIT` provider with deterministic `DEMO` remaining the default
-- [x] Market-data latency, failure-count, last-success age, and status reporting gate
-- [x] Fail-closed strategy/PAPER execution on unhealthy market data
-- [x] Failed market-data cycle abort and immutable audit event
-- [x] Upbit ticker/candle source timestamp parsing and preservation
-- [x] Fail-closed rejection of missing, naive, stale, future, and inconsistent exchange timestamps
-- [x] Exchange source timestamp and source-age health reporting
+- [x] Validated ticker/candle momentum, volatility, and source timestamps
+- [x] Market-data latency, source-age, failure-count, and fail-closed execution gate
+- [x] Isolated authenticated Upbit read-only account client
+- [x] Secret-safe credential loading from `AIPRO_UPBIT_ACCESS_KEY` and `AIPRO_UPBIT_SECRET_KEY`
+- [x] HS512 JWT generation with per-request nonce and SHA-512 query hash
+- [x] GET-only balance, single-order, and open-order inspection
+- [x] Network-level blocking of non-read-only private endpoints
+- [x] Authentication, permission, timeout, retry, duplicate-ID, and response-validation tests
 - [x] GitHub Actions regression tests for all completed components
 
 ### In progress
 
 - [ ] Complete remaining compatibility cleanup for legacy root-level crypto imports
 - [ ] Validate Upbit public market data during sustained supervised PAPER operation
+- [ ] Perform a supervised least-privilege read-only account probe with a real API key
 
 ### Not started
 
 #### Crypto
 
-- [ ] Authenticated Upbit account client with read-only balance/order inspection first
+- [ ] Persist read-only exchange account snapshots without mixing them into PAPER balances
 - [ ] Exchange order-ID reconciliation after timeout
 - [ ] `/ai_upbit_go -> /confirm -> /go` live approval flow
 - [ ] Authenticated order submission, disabled until readiness and supervised PAPER gates pass
@@ -97,55 +97,58 @@ Overall completion: **82%**
 
 1. The execution path remains `run.py -> telegram.py -> main.py -> TradingApplication`.
 2. Crypto and US-stock baselines and state namespaces remain independent.
-3. The active broker remains PAPER only unless the existing explicit LIVE guards are satisfied.
-4. `AIPRO_MARKET_DATA_PROVIDER=DEMO` is the safe default and performs no network calls.
-5. `AIPRO_MARKET_DATA_PROVIDER=UPBIT` changes only the crypto price source and uses public quotation endpoints without credentials.
-6. Upbit current prices are retrieved in one ticker request; recent 60-minute candles are retrieved per configured symbol.
-7. Missing, malformed, duplicate, non-positive, non-finite, mismatched, or incorrectly ordered public data fails closed.
-8. Upbit ticker and candle timestamps are normalized to timezone-aware UTC values and carried in each snapshot.
-9. Missing, stale, future, naive, or inconsistent exchange timestamps block strategy decisions and PAPER orders.
-10. Market-data retry attempts, timeout, latency, source age, and consecutive failures are bounded and reported.
-11. An unhealthy provider blocks strategy decisions and PAPER orders and records a failed-cycle audit event.
-12. Selecting Upbit market data does not enable account access or order submission.
-13. Archived completed PAPER orders remain immutable and continue to participate in duplicate-ID checks and reconciliation.
+3. The active broker remains PAPER only unless the explicit LIVE guards are satisfied.
+4. `AIPRO_MARKET_DATA_PROVIDER=DEMO` remains the safe offline default.
+5. Upbit public market data remains separate from authenticated account inspection.
+6. Authenticated account inspection is not wired into strategy decisions, PAPER balances, or order submission.
+7. Upbit credentials are loaded only when `UpbitCredentials.from_env()` is explicitly called.
+8. Credential values are excluded from dataclass representations and error messages.
+9. Private requests use HS512 JWT Bearer authentication with a new nonce for every attempt.
+10. Query-bearing requests include a SHA-512 hash of the exact query string.
+11. The private client permits only `/v1/accounts`, `/v1/order`, `/v1/orders/open`, and reserved `/v1/orders/closed` GET paths.
+12. Order creation, cancellation, deposit, withdrawal, and mutation endpoints are blocked before network access.
+13. Authentication and permission errors fail closed and are distinguished from retryable transport errors.
+14. PAPER state remains the source of truth for simulated trading.
 
 ## Current gaps and risks
 
-1. Upbit candle intervals with no trades may be absent; sparse markets can fail validation.
-2. Hourly return volatility is a basic feature and is not evidence of predictive value.
-3. Backtests still use fixed slippage and do not model order-book depth or partial fills.
-4. Open positions are marked to the latest supplied price at backtest end rather than forcibly liquidated.
-5. Real account authentication and exchange order reconciliation remain unimplemented.
-6. Exchange timestamps are validated against a single configured age threshold; sustained PAPER operation is still needed to tune tolerance safely.
-7. Archived evidence has no signed export and deletion policy; automatic deletion remains disabled.
-8. US-stock broker, data, calendar, FX, tax, and fractional-share behavior remain unimplemented.
-9. Legacy baseline keys remain for rollback compatibility and need a retirement version before removal.
+1. The authenticated client has passed deterministic tests but has not yet been exercised with a real least-privilege Upbit API key.
+2. A real API key must be restricted by IP and limited to account/order-view permissions; order and withdrawal permissions must remain disabled.
+3. Read-only exchange snapshots are not yet persisted or compared with PAPER state.
+4. Timeout reconciliation and immutable exchange-order identity rules remain unimplemented.
+5. Upbit candle intervals with no trades may be absent; sparse markets can fail validation.
+6. Backtests still use fixed slippage and do not model order-book depth or partial fills.
+7. Exchange timestamp tolerance still requires sustained PAPER observation.
+8. Archived evidence has no signed export and deletion policy.
+9. US-stock broker, data, calendar, FX, tax, and fractional-share behavior remain unimplemented.
+10. Legacy baseline keys remain for rollback compatibility and need a retirement version before removal.
 
 ## Immediate priority
 
-### P0 — Authenticated Upbit read-only account boundary
+### P0 — Supervised read-only account verification
 
-- Add credential loading without logging secrets.
-- Implement account and order lookup only; no order creation.
-- Keep private endpoints isolated from the public market adapter.
-- Add timeout, authentication, permission-failure, and response-validation tests.
+- Use an API key with only account and order-view permissions.
+- Keep order, withdrawal, and deposit-management permissions disabled.
+- Verify IP restriction, authentication errors, balance parsing, and open-order parsing.
+- Record only redacted diagnostics; never commit credentials or raw Authorization headers.
 
-### P1 — Supervised crypto PAPER validation
+### P1 — Read-only account snapshot persistence
 
-- Run validated historical datasets through the readiness gate.
-- Record dataset fingerprint, strategy/config version, and PAPER observation period.
-- Require stable restart, reconciliation, HALTED, provider-health, and source-timestamp behavior.
+- Store exchange snapshots in a separate immutable namespace.
+- Never replace PAPER cash, positions, or daily baseline with exchange values.
+- Add snapshot age, fingerprint, and reconciliation status.
 
 ### P2 — Exchange order reconciliation design
 
-- Define timeout lookup and immutable exchange-order identity rules.
+- Define timeout lookup using exchange UUID and client identifier.
 - Prevent duplicate submission after ambiguous network outcomes.
-- Keep submission disabled until authenticated read-only inspection is proven.
+- Keep submission code absent until read-only inspection and supervised PAPER gates pass.
 
-### P3 — US-stock public data research
+### P3 — Supervised crypto PAPER validation
 
-- Select a compliant data interface before code implementation.
-- Document market calendar, delayed/real-time status, rate limits, and licensing constraints.
+- Run validated historical datasets through the readiness gate.
+- Record dataset fingerprint, strategy/config version, and observation period.
+- Require stable restart, HALTED, provider-health, and source-timestamp behavior.
 
 ## Completion policy
 
@@ -153,4 +156,4 @@ A task is complete only when implementation, tests, documentation, limitations, 
 
 ## Next action
 
-Merge exchange timestamp validation after final CI, then implement an isolated authenticated Upbit read-only account client with no order-creation capability.
+Complete final CI for the isolated Upbit read-only account boundary, merge it, then add a credential-safe supervised verification command that cannot submit or cancel orders.
