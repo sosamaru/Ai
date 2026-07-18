@@ -8,6 +8,7 @@ from aipro.app import TradingApplication as LegacyTradingApplication
 from aipro.crypto.broker import PaperBroker
 from aipro.crypto.config import CryptoSettings
 from aipro.crypto.market import DemoMarketData, UpbitMarketData, UpbitPublicClient
+from aipro.crypto.market_health import HealthCheckedMarketData, MarketDataHealthPolicy
 from aipro.crypto.strategy import MomentumStrategy
 from aipro.risk import RiskManager
 from aipro.storage import Storage
@@ -16,12 +17,7 @@ KST = ZoneInfo("Asia/Seoul")
 
 
 class CryptoTradingApplication(LegacyTradingApplication):
-    """Crypto-owned runtime assembly with legacy behavior preserved.
-
-    The operational methods remain inherited during the compatibility phase,
-    while configuration, market data, strategy, and broker dependencies are
-    assembled explicitly from the crypto package.
-    """
+    """Crypto-owned runtime assembly with legacy behavior preserved."""
 
     def __init__(
         self,
@@ -31,7 +27,7 @@ class CryptoTradingApplication(LegacyTradingApplication):
         self.settings = settings
         self.storage = Storage(settings.db_path)
         if settings.market_data_provider == "UPBIT":
-            self.market = UpbitMarketData(
+            delegate = UpbitMarketData(
                 symbols=settings.crypto_symbols,
                 client=UpbitPublicClient(
                     timeout_sec=settings.market_data_timeout_sec,
@@ -39,7 +35,16 @@ class CryptoTradingApplication(LegacyTradingApplication):
                 ),
             )
         else:
-            self.market = DemoMarketData()
+            delegate = DemoMarketData()
+        self.market = HealthCheckedMarketData(
+            provider_name=settings.market_data_provider,
+            delegate=delegate,
+            policy=MarketDataHealthPolicy(
+                max_latency_sec=settings.market_data_max_latency_sec,
+                max_snapshot_age_sec=settings.market_data_max_snapshot_age_sec,
+                max_consecutive_failures=settings.market_data_max_consecutive_failures,
+            ),
+        )
         self.strategy = MomentumStrategy()
         self.broker = PaperBroker.restore(float(settings.initial_cash_krw), self.storage)
         self._date_provider = date_provider or (lambda: datetime.now(KST).date())
