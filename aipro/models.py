@@ -8,6 +8,16 @@ class Signal(str, Enum):
     SELL = "SELL"
 
 
+class OrderSide(str, Enum):
+    BUY = "BUY"
+    SELL = "SELL"
+
+
+class OrderStatus(str, Enum):
+    FILLED = "FILLED"
+    NO_POSITION = "NO_POSITION"
+
+
 @dataclass(frozen=True, slots=True)
 class MarketSnapshot:
     symbol: str
@@ -22,3 +32,14 @@ class Decision:
     signal: Signal
     confidence: float
     reason: str
+
+
+@dataclass(frozen=True, slots=True)
+class OrderRecord:
+    client_order_id: str
+    side: OrderSide
+    symbol: str
+    status: OrderStatus
+    price: float
+    quantity: float
+    amount_krw: float
