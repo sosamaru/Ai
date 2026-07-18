@@ -18,7 +18,7 @@ Development order:
 
 ## Current status
 
-Overall completion: **50%**
+Overall completion: **54%**
 
 ### Completed
 
@@ -40,30 +40,25 @@ Overall completion: **50%**
 - [x] Standard-library Telegram long polling with retry
 - [x] Configuration, persistent-state, and Telegram router tests
 - [x] GitHub Actions pytest workflow with diagnostic log artifact
-- [x] Persistent paper cash, positions, and average prices
+- [x] Persistent paper cash, positions, average prices, and order IDs
 - [x] Safe recovery from invalid persisted paper-account state
-- [x] Immutable paper buy/sell event records in SQLite
-- [x] Paper-account restart, liquidation, corruption, and invalid-trade tests
-- [x] Successful GitHub Actions validation for paper-account persistence
 - [x] Application-level forced-liquidation restart coverage
-- [x] Successful GitHub Actions validation for forced-liquidation coverage
-- [x] Immutable paper order records with explicit side and status
-- [x] Persistent client order identifiers across restarts
-- [x] Duplicate paper buy and sell requests applied at most once
-- [x] Idempotent no-position sell results
-- [x] Successful GitHub Actions validation for idempotent paper orders
-- [x] Deterministic application order IDs from date, cycle, side, and symbol
-- [x] Persistent active-cycle recovery after interrupted execution
-- [x] Application status exposes cycle sequence and active cycle
-- [x] Successful GitHub Actions validation for deterministic application order IDs
+- [x] Immutable and idempotent paper order records
+- [x] Deterministic application order IDs and interrupted-cycle recovery
+- [x] Successful GitHub Actions validation for deterministic order IDs
 - [x] Read-only cash and position-quantity reconciliation
 - [x] Reconciliation mismatch reporting without automatic state mutation
-- [x] Reconciliation summary exposed through application status
+- [x] Successful GitHub Actions validation for read-only reconciliation
+- [x] Bounded retry policy for transient broker failures
+- [x] Permanent broker errors fail immediately without retry
+- [x] Broker operation deadline and timeout error foundation
+- [x] Extended order states: pending, partial, rejected, cancelled, and timeout
 
 ### In progress
 
-- [ ] Confirm GitHub Actions for read-only reconciliation
-- [ ] Retry and timeout policy for broker operations
+- [ ] Confirm GitHub Actions for broker reliability policy
+- [ ] Integrate reliability executor at exchange-adapter boundary
+- [ ] Completed-order retention and archival policy
 - [ ] Backtesting engine and performance report
 - [ ] Paper-trading readiness validation
 
@@ -81,62 +76,43 @@ Overall completion: **50%**
 
 ## Current behavior
 
-1. KST date and daily baseline survive process restarts.
-2. Daily-loss HALTED survives restarts and date changes.
-3. Only explicit resume clears HALTED and creates a new baseline.
-4. Paper cash, positions, average prices, and completed order records survive restarts.
-5. Invalid or corrupted paper-account state is rejected and safely reinitialized.
-6. Forced liquidation persists empty positions and reduced cash before restart.
-7. A restarted HALTED application cannot silently create new positions.
-8. Repeated `submit_buy()` or `submit_sell_all()` calls with the same client order ID return the original immutable result without changing balances twice.
-9. Orders expose explicit `BUY`/`SELL` sides and `FILLED`/`NO_POSITION` states.
-10. Each application cycle receives a persistent sequence and deterministic order IDs.
-11. Interrupted cycles remain active so a restarted process reuses the same order IDs.
-12. A cycle is cleared only after the full application run completes successfully.
-13. Reconciliation rebuilds expected cash and net position quantities from filled immutable orders.
-14. Reconciliation only reports mismatches and never silently edits cash, positions, or orders.
-15. Application status exposes reconciliation health and issue count.
-16. Existing `buy()` and `sell_all()` compatibility methods remain available.
-17. Telegram is disabled when no token is configured; console mode runs one cycle.
-18. Unauthorized chat IDs cannot inspect or change application state.
-19. Real exchange orders remain unimplemented and disabled.
+1. KST date, daily baseline, HALTED state, account state, orders, and active cycle survive restarts.
+2. Duplicate client order IDs cannot apply the same paper fill twice.
+3. Reconciliation reconstructs expected cash and quantities and never silently edits state.
+4. Transient broker failures can be retried only up to a configured attempt limit.
+5. Permanent broker failures are never retried.
+6. Retry backoff is bounded and constrained by the overall operation deadline.
+7. A result that returns after the deadline raises a timeout requiring reconciliation before another order attempt.
+8. Real exchange authentication and order submission remain unimplemented and disabled.
 
 ## Current gaps and risks
 
-1. Reconciliation does not yet compare against an external exchange account because no Upbit account client exists.
-2. Average-price reconstruction is intentionally excluded because legacy random order IDs do not guarantee chronological replay.
-3. Completed order history is stored with the paper-account snapshot and needs retention limits before long-running operation.
-4. Broker operations do not implement bounded retries, timeout handling, partial fills, or cancellation states.
-5. A permanently failing cycle requires an explicit administrative recovery policy before production operation.
-6. Telegram bot tokens remain environment-managed; a production secret manager is not integrated.
+1. The reliability executor is intentionally not wired into `PaperBroker`; local paper operations are synchronous and deterministic.
+2. A real exchange adapter must reconcile an order ID after timeout before submitting it again.
+3. Python cannot forcibly cancel an arbitrary blocking network call safely; the future HTTP adapter must also configure socket/connect/read timeouts.
+4. Partial-fill fields and cancellation transitions are not yet represented in `OrderRecord` beyond status values.
+5. Completed order history needs retention limits before long-running operation.
+6. Reconciliation does not compare against an external exchange account because no authenticated Upbit client exists.
 7. The application still uses demo market data and a paper broker only.
-8. The three-step live approval flow is intentionally not implemented yet.
 
 ## Immediate priority
 
-### P0 — Validate reconciliation
+### P0 — Validate broker reliability
 
-- Confirm GitHub Actions passes for consistent-account and mismatch-detection tests.
-- Verify reconciliation performs no state mutation.
-- Verify all previous order, liquidation, persistent-state, and Telegram tests remain green.
+- Confirm GitHub Actions passes retry, timeout, and permanent-error tests.
+- Verify existing persistence, reconciliation, liquidation, and Telegram tests remain green.
 
-### P1 — Broker reliability
+### P1 — Backtesting foundation
 
-- Add bounded retry and timeout policies.
-- Define pending, rejected, cancelled, and partially filled states.
-- Add completed-order retention or archival policy.
+- Build deterministic historical replay without changing live-facing architecture.
+- Record fees, slippage, drawdown, win rate, exposure, and trade chronology.
+- Produce a machine-readable and human-readable performance report.
 
-### P2 — Validation foundation
+### P2 — Exchange-readiness
 
-- Build deterministic replay/backtesting support.
-- Record fees, slippage, drawdown, win rate, and exposure.
-- Define measurable paper-trading acceptance criteria.
-
-### P3 — Exchange integration
-
-- Implement read-only Upbit market data first.
-- Add authenticated account reconciliation after safe credential handling is designed.
-- Keep order submission disabled until readiness criteria pass.
+- Add read-only Upbit market data first.
+- Apply HTTP connect/read timeouts at the adapter boundary.
+- Require order lookup and reconciliation after ambiguous timeout outcomes.
 
 ## Completion policy
 
@@ -144,4 +120,4 @@ A task is complete only when implementation, tests, documentation, limitations, 
 
 ## Next action
 
-Confirm CI for read-only reconciliation, then implement bounded retry and timeout behavior without enabling real exchange trading.
+Confirm CI for the broker reliability branch, then begin the deterministic backtesting engine before any authenticated exchange integration.

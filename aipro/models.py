@@ -14,8 +14,13 @@ class OrderSide(str, Enum):
 
 
 class OrderStatus(str, Enum):
+    PENDING = "PENDING"
     FILLED = "FILLED"
+    PARTIALLY_FILLED = "PARTIALLY_FILLED"
     NO_POSITION = "NO_POSITION"
+    REJECTED = "REJECTED"
+    CANCELLED = "CANCELLED"
+    TIMEOUT = "TIMEOUT"
 
 
 @dataclass(frozen=True, slots=True)
