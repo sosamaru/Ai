@@ -26,7 +26,11 @@ class FakeResponse:
         return None
 
 
-def _ticker(symbol: str, price: float, timestamp_ms: int = 1_768_521_600_000) -> dict[str, object]:
+def _ticker(
+    symbol: str,
+    price: float,
+    timestamp_ms: int = 1_768_435_200_000,
+) -> dict[str, object]:
     return {"market": symbol, "trade_price": price, "timestamp": timestamp_ms}
 
 
@@ -184,8 +188,9 @@ def test_upbit_provider_is_opt_in_and_does_not_enable_live(tmp_path) -> None:
 
     app = CryptoTradingApplication(settings)
 
-    assert isinstance(app.market, HealthCheckedMarketData)
-    assert isinstance(app.market.delegate, UpbitMarketData)
+    assert isinstance(app.market, UpbitMarketData)
+    assert isinstance(app.market_health, HealthCheckedMarketData)
+    assert app.market_health.delegate is app.market
     assert app.settings.mode == "PAPER"
     assert app.settings.enable_live_trading is False
 
