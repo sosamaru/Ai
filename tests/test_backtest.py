@@ -99,6 +99,19 @@ def test_max_positions_prevents_new_symbol_but_allows_existing_position() -> Non
     assert [trade.symbol for trade in buys] == ["KRW-BTC", "KRW-BTC"]
 
 
+def test_report_has_machine_and_human_readable_formats() -> None:
+    result = BacktestEngine(
+        ScriptedStrategy(),
+        BacktestConfig(max_position_pct=1.0, fee_rate=0.0, slippage_bps=0.0),
+    ).run([_bar(0, 100.0, 1.5), _bar(1, 110.0, -1.5)])
+
+    payload = result.to_dict()
+    assert payload["summary"]["total_return_pct"] == pytest.approx(10.0)
+    assert payload["trades"][0]["timestamp"] == "2026-07-18T00:00:00"
+    assert "AiPro Backtest Report" in result.to_text()
+    assert "Total return: 10.0000%" in result.to_text()
+
+
 def test_empty_data_and_invalid_configuration_are_rejected() -> None:
     with pytest.raises(ValueError, match="at least one bar"):
         BacktestEngine(ScriptedStrategy()).run([])
