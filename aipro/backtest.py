@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Iterable, Protocol
 
@@ -75,6 +75,47 @@ class BacktestResult:
     average_exposure_pct: float
     equity_curve: tuple[tuple[datetime, float], ...]
     trades: tuple[BacktestTrade, ...]
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "summary": {
+                "initial_equity_krw": self.initial_equity_krw,
+                "final_equity_krw": self.final_equity_krw,
+                "total_return_pct": self.total_return_pct,
+                "max_drawdown_pct": self.max_drawdown_pct,
+                "trade_count": self.trade_count,
+                "closed_trade_count": self.closed_trade_count,
+                "win_rate_pct": self.win_rate_pct,
+                "total_fees_krw": self.total_fees_krw,
+                "average_exposure_pct": self.average_exposure_pct,
+            },
+            "equity_curve": [
+                {"timestamp": timestamp.isoformat(), "equity_krw": equity}
+                for timestamp, equity in self.equity_curve
+            ],
+            "trades": [
+                {
+                    **asdict(trade),
+                    "timestamp": trade.timestamp.isoformat(),
+                }
+                for trade in self.trades
+            ],
+        }
+
+    def to_text(self) -> str:
+        return "\n".join(
+            [
+                "AiPro Backtest Report",
+                f"Initial equity: {self.initial_equity_krw:,.2f} KRW",
+                f"Final equity: {self.final_equity_krw:,.2f} KRW",
+                f"Total return: {self.total_return_pct:.4f}%",
+                f"Max drawdown: {self.max_drawdown_pct:.4f}%",
+                f"Trades: {self.trade_count} ({self.closed_trade_count} closed)",
+                f"Win rate: {self.win_rate_pct:.2f}%",
+                f"Fees: {self.total_fees_krw:,.2f} KRW",
+                f"Average exposure: {self.average_exposure_pct:.2f}%",
+            ]
+        )
 
 
 @dataclass(slots=True)
