@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 
 
@@ -29,6 +30,8 @@ class MarketSnapshot:
     price: float
     change_1h_pct: float
     volatility_pct: float
+    ticker_timestamp: datetime | None = None
+    candle_timestamp: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
