@@ -4,7 +4,7 @@ This phase records deterministic evidence that the crypto PAPER runtime behaved 
 
 ## Scope
 
-The validator evaluates only supplied observation facts. It does not start the runtime, submit orders, enable LIVE mode, change balances, or modify strategy state.
+The validator evaluates only supplied observation facts and immutable snapshot-comparison evidence. It does not start the runtime, submit orders, enable LIVE mode, change balances, or modify strategy state.
 
 Evidence includes:
 
@@ -18,6 +18,7 @@ Evidence includes:
 - stale source timestamp count
 - duplicate order ID count
 - unhandled exception count
+- latest Upbit read-only versus PAPER comparison status, timestamp, age, and fingerprint
 
 ## Default PASS gates
 
@@ -30,8 +31,17 @@ A result is `PASS` only when all of these conditions are true:
 - zero stale source events
 - zero duplicate order IDs
 - zero unhandled exceptions
+- comparison evidence is present
+- comparison status is exactly `MATCH`
+- comparison evidence is no older than 300 seconds at evaluation time
 
-Any failed or missing safety condition produces `FAIL`.
+Missing evidence, `MISMATCH`, `STALE`, or an expired `MATCH` produces `FAIL`. The validator embeds only comparison metadata and its SHA-256 fingerprint; it does not copy exchange balances or order details into PAPER state.
+
+`PaperValidationPolicy` can change the maximum accepted comparison age for supervised tests, but comparison enforcement remains enabled by default.
+
+## Determinism
+
+Callers should supply an explicit timezone-aware `evaluated_at` timestamp when generating reproducible validation evidence. The evaluation timestamp and calculated comparison age are included in the canonical payload and fingerprint.
 
 ## Immutable evidence
 
