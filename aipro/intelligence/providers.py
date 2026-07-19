@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from typing import Any, Sequence
 from urllib import parse, request
 
+from aipro.intelligence.features import NativeTickerSentiment
 from aipro.intelligence.news import NewsArticle, SentimentObservation
 
 
@@ -39,12 +40,7 @@ class FinnhubNewsProvider:
         for symbol in symbols:
             payload = self.http.get_json(
                 "https://finnhub.io/api/v1/company-news",
-                {
-                    "symbol": symbol,
-                    "from": start_date,
-                    "to": end_date,
-                    "token": self.api_key,
-                },
+                {"symbol": symbol, "from": start_date, "to": end_date, "token": self.api_key},
             )
             if not isinstance(payload, list):
                 raise RuntimeError("Finnhub returned a non-list response")
@@ -84,13 +80,7 @@ class AlphaVantageSentimentProvider:
         self.api_key = api_key.strip()
         self.http = http or JsonHttpClient()
 
-    def fetch_sentiment(
-        self,
-        symbols: Sequence[str],
-        *,
-        since_utc: datetime,
-        limit: int = 50,
-    ) -> tuple[NewsArticle, ...]:
+    def _request_feed(self, symbols: Sequence[str], *, since_utc: datetime, limit: int) -> list[dict[str, Any]]:
         if since_utc.tzinfo is None:
             raise ValueError("since_utc must be timezone-aware")
         if not 1 <= limit <= 1000:
@@ -110,36 +100,83 @@ class AlphaVantageSentimentProvider:
         feed = payload.get("feed", [])
         if not isinstance(feed, list):
             raise RuntimeError("Alpha Vantage feed is invalid")
+        return [item for item in feed if isinstance(item, dict)]
+
+    @staticmethod
+    def _article_from_item(item: dict[str, Any], index: int) -> NewsArticle | None:
+        headline = str(item.get("title", "")).strip()
+        published_raw = str(item.get("time_published", "")).strip()
+        if not headline or not published_raw:
+            return None
+        published = datetime.strptime(published_raw, "%Y%m%dT%H%M%S").replace(tzinfo=UTC)
+        ticker_sentiment = item.get("ticker_sentiment", [])
+        article_symbols = tuple(
+            str(entry.get("ticker", "")).strip().upper()
+            for entry in ticker_sentiment
+            if isinstance(entry, dict) and str(entry.get("ticker", "")).strip()
+        )
+        provider_id = str(item.get("url", "")).strip() or f"alpha-{published_raw}-{index}"
+        return NewsArticle(
+            provider="alpha_vantage",
+            provider_id=provider_id,
+            headline=headline,
+            summary=str(item.get("summary", "")).strip(),
+            url=str(item.get("url", "")).strip(),
+            source=str(item.get("source", "Alpha Vantage")).strip() or "Alpha Vantage",
+            published_at_utc=published.isoformat(),
+            symbols=article_symbols,
+            category="sentiment",
+        )
+
+    def fetch_native_sentiment(
+        self,
+        symbols: Sequence[str],
+        *,
+        since_utc: datetime,
+        limit: int = 50,
+    ) -> tuple[tuple[NewsArticle, ...], tuple[NativeTickerSentiment, ...]]:
         articles: list[NewsArticle] = []
-        for index, item in enumerate(feed):
-            if not isinstance(item, dict):
+        observations: list[NativeTickerSentiment] = []
+        for index, item in enumerate(self._request_feed(symbols, since_utc=since_utc, limit=limit)):
+            article = self._article_from_item(item, index)
+            if article is None:
                 continue
-            headline = str(item.get("title", "")).strip()
-            published_raw = str(item.get("time_published", "")).strip()
-            if not headline or not published_raw:
-                continue
-            published = datetime.strptime(published_raw, "%Y%m%dT%H%M%S").replace(tzinfo=UTC)
+            articles.append(article)
             ticker_sentiment = item.get("ticker_sentiment", [])
-            article_symbols = tuple(
-                str(entry.get("ticker", "")).strip().upper()
-                for entry in ticker_sentiment
-                if isinstance(entry, dict) and str(entry.get("ticker", "")).strip()
-            )
-            provider_id = str(item.get("url", "")).strip() or f"alpha-{published_raw}-{index}"
-            articles.append(
-                NewsArticle(
-                    provider=self.name,
-                    provider_id=provider_id,
-                    headline=headline,
-                    summary=str(item.get("summary", "")).strip(),
-                    url=str(item.get("url", "")).strip(),
-                    source=str(item.get("source", "Alpha Vantage")).strip() or "Alpha Vantage",
-                    published_at_utc=published.isoformat(),
-                    symbols=article_symbols,
-                    category="sentiment",
+            if not isinstance(ticker_sentiment, list):
+                continue
+            for entry in ticker_sentiment:
+                if not isinstance(entry, dict):
+                    continue
+                symbol = str(entry.get("ticker", "")).strip().upper()
+                try:
+                    relevance = float(entry.get("relevance_score", 0.0))
+                    score = float(entry.get("ticker_sentiment_score", 0.0))
+                except (TypeError, ValueError):
+                    continue
+                if not symbol:
+                    continue
+                observations.append(
+                    NativeTickerSentiment(
+                        provider=self.name,
+                        article_fingerprint=article.fingerprint,
+                        symbol=symbol,
+                        relevance_score=max(0.0, min(1.0, relevance)),
+                        sentiment_score=max(-1.0, min(1.0, score)),
+                        sentiment_label=str(entry.get("ticker_sentiment_label", "neutral")),
+                    )
                 )
-            )
-        return tuple(articles)
+        return tuple(articles), tuple(observations)
+
+    def fetch_sentiment(
+        self,
+        symbols: Sequence[str],
+        *,
+        since_utc: datetime,
+        limit: int = 50,
+    ) -> tuple[NewsArticle, ...]:
+        articles, _ = self.fetch_native_sentiment(symbols, since_utc=since_utc, limit=limit)
+        return articles
 
     def score(self, articles: Sequence[NewsArticle]) -> Sequence[SentimentObservation]:
         observations: list[SentimentObservation] = []
