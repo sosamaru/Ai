@@ -46,52 +46,58 @@ Overall completion: **100%**
 - [x] Regression tests and GitHub Actions workflow
 - [x] Safety and limitation documentation
 
-## V1 safety boundary
+## V2 integration status
 
-1. PAPER remains the source of truth.
-2. Approval completion records operator intent only and never enables LIVE trading.
-3. Authenticated order creation, cancellation, withdrawals, deposits, and account mutation remain absent.
-4. Intelligence snapshots are data-only and cannot alter balances, positions, risk state, baselines, or approvals.
-5. Missing or stale comparison and intelligence evidence fails closed.
-6. No claim of profitability or production readiness is made by reaching 100% V1 completion.
+Development completion: **100% for the approved non-live integration scope**
 
-## V2 status
-
-Current milestone: **authorization and PAPER-training foundation**
-
-### Completed in current milestone
+### Completed
 
 - [x] Email OTP first-factor state machine
-- [x] Separate second-factor verification contract
+- [x] SMTP OTP sender with environment-only secret configuration
+- [x] RFC 6238 TOTP second-factor verifier
 - [x] Salted OTP digest, expiry, failed-attempt lockout, and immediate revocation
 - [x] Temporary LIVE authorization lease with forced reauthentication after expiry
 - [x] Global stop/revocation path
+- [x] Atomic authorization-state persistence across restart
+- [x] Append-only authorization audit evidence with UPDATE/DELETE blocking
+- [x] Alpaca PAPER-only account, order, order-list, and reconciliation lookup adapter
+- [x] Alpaca live-domain rejection and separate PAPER credential names
 - [x] Alpaca PAPER minimum 30-day readiness policy
 - [x] Session, order-count, expectancy, drawdown, daily-loss, stale-data, duplicate-order, and reconciliation gates
-- [x] Deterministic PAPER evidence fingerprint
-- [x] Regression tests and design documentation
+- [x] Upbit authenticated `/v1/orders/test` preflight adapter
+- [x] Hard separation from the real Upbit `/v1/orders` endpoint
+- [x] Deterministic regression tests for authorization, restart recovery, PAPER-domain enforcement, and test-order safety
+- [x] Secret-safe deployment and operation documentation
 
-### Next implementation milestones
+## Development boundary
 
-- [ ] SMTP or transactional-email OTP sender adapter with secret-safe configuration
-- [ ] TOTP verifier and enrollment/recovery procedure
-- [ ] Persist authorization state and append-only authorization audit evidence
-- [ ] Connect Telegram commands without allowing command-only bypass
-- [ ] Alpaca PAPER account, market-data, order, fill, and reconciliation adapters
-- [ ] Automatic 30-day PAPER evidence collector and daily report
-- [ ] Upbit authenticated test-order/preflight adapter before any real order endpoint
-- [ ] Upbit supervised live-data collector with order submission disabled
-- [ ] Expert-claim extraction, source reliability scoring, and outcome tracking
-- [ ] Chart, volatility, liquidity, macro, filing, and event feature expansion
-- [ ] Risk-adjusted EV ensemble, drift detection, and strategy-ablation evaluation
-- [ ] Independent live-readiness review before creating a minimal real-order adapter
+The software development package is complete, but this does **not** mean real-money trading is approved.
+
+1. Real Upbit order creation remains absent.
+2. Alpaca integration accepts only `https://paper-api.alpaca.markets`.
+3. Upbit integration calls only `POST /v1/orders/test`, which validates but does not create an order.
+4. Email OTP and TOTP grant only a temporary authorization lease; they do not bypass risk or readiness gates.
+5. Authorization secrets, SMTP passwords, broker keys, TOTP secrets, and OTP plaintext must never be committed.
+6. An OTP, expert opinion, high confidence score, or recent profit may never bypass a failed safety gate.
+
+## Operational validation still required
+
+These are real-world evidence runs, not unfinished coding tasks:
+
+- [ ] Configure a dedicated SMTP or transactional-email account and confirm delivery to the owner email.
+- [ ] Enroll the TOTP secret in an authenticator application and store recovery material offline.
+- [ ] Add actual Alpaca PAPER credentials and run at least 30 calendar days.
+- [ ] Collect sufficient sessions and orders while satisfying expectancy, drawdown, daily-loss, freshness, duplicate-order, and reconciliation gates.
+- [ ] Add an IP-restricted Upbit key and execute supervised test-order/preflight checks only.
+- [ ] Run the Upbit live-data collector with order creation disabled.
+- [ ] Review evidence and produce a separate live-readiness decision.
 
 ## Mandatory future real-order gates
 
-A future order adapter must require every gate below simultaneously:
+A future minimal real-order adapter may be considered only after every gate below passes simultaneously:
 
 1. Explicit LIVE environment guards.
-2. Active two-factor authorization lease.
+2. Active email OTP plus TOTP authorization lease.
 3. Recent PAPER validation PASS.
 4. At least 30 days of qualifying Alpaca PAPER evidence for the US-stock domain.
 5. Recent reconciliation `MATCH` evidence.
@@ -99,16 +105,15 @@ A future order adapter must require every gate below simultaneously:
 7. Healthy required providers.
 8. Daily-loss, drawdown, exposure, liquidity, and position-size limits.
 9. Unique client order identifier and duplicate-order rejection.
-10. Order preflight/test validation when supported.
+10. Successful order preflight/test validation when supported.
 11. Global kill switch not active.
+12. Independent live-readiness review approval.
 
-An OTP, expert opinion, high confidence score, or recent profit may never bypass a failed safety gate.
-
-## V2 investment-intelligence policy
+## Investment-intelligence policy
 
 - Expert opinions are timestamped evidence, not direct commands.
 - Each claim must be mapped to symbols, events, horizon, and measurable outcomes.
-- Source weights must be learned from out-of-sample historical accuracy and must decay when performance deteriorates.
+- Source weights must be learned from out-of-sample historical accuracy and decay when performance deteriorates.
 - News, filings, macro, chart, volume, volatility, liquidity, regime, and portfolio risk must be combined.
 - The optimization target is risk-adjusted expected value and controlled drawdown, not maximum aggression.
 - Disagreement, stale data, regime uncertainty, and model drift reduce or block position size.
@@ -116,8 +121,8 @@ An OTP, expert opinion, high confidence score, or recent profit may never bypass
 
 ## Completion policy
 
-A task is complete only when implementation, tests, documentation, limitations, and safety boundaries are recorded. Real-order code remains prohibited until the independent live-readiness review passes.
+A development task is complete only when implementation, tests, documentation, limitations, and safety boundaries are recorded. Operational evidence may not be marked complete until the real elapsed-time run occurs.
 
 ## Next action
 
-Implement the concrete email OTP sender, TOTP verifier, persisted authorization audit store, and Alpaca PAPER adapter while keeping real order submission absent.
+Configure secrets outside Git, verify email OTP and TOTP locally, then begin the 30-day Alpaca PAPER evidence run and supervised Upbit test-order/data collection. Keep authenticated real order submission absent until a separate live-readiness review passes.
