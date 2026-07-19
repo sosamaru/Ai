@@ -36,6 +36,8 @@ Legacy root modules are still used by the crypto PAPER runtime and will be migra
 - KST daily baseline persistence
 - Paper broker
 - SQLite event and application-state storage
+- Isolated authenticated Upbit GET-only account inspection
+- Guarded read-only verification with optional immutable exchange snapshots
 - Authenticated Telegram commands
 - File and console logging
 - Unit tests and GitHub Actions
@@ -68,6 +70,20 @@ Supported commands:
 
 Unknown or unauthorized chat IDs cannot execute commands. `/go` does not alter the baseline when the application is already ready.
 
+## Supervised Upbit read-only verification
+
+Use an Upbit API key restricted by IP with account-view and order-view permissions only. Order, withdrawal, and deposit-management permissions must remain disabled.
+
+```bash
+AIPRO_UPBIT_READONLY_VERIFY=YES
+AIPRO_UPBIT_ACCESS_KEY=<read-only-access-key>
+AIPRO_UPBIT_SECRET_KEY=<read-only-secret-key>
+AIPRO_UPBIT_SNAPSHOT_DB=data/upbit_readonly_snapshots.sqlite3
+python -m aipro.crypto.verify_readonly
+```
+
+`AIPRO_UPBIT_SNAPSHOT_DB` is optional. When set, the command appends the full exchange observation to a dedicated immutable SQLite table. It never replaces or updates PAPER cash, positions, orders, daily baselines, strategy inputs, or LIVE approval state. Console JSON remains redacted and does not contain balances, average prices, order UUIDs, identifiers, credentials, or Authorization headers.
+
 ## Test
 
 ```bash
@@ -76,4 +92,4 @@ python -m pytest -q
 
 ## Safety
 
-This repository does not send real orders. A real Upbit adapter and a separate US-stock broker adapter, authenticated API clients, secret management, reconciliation, idempotency, retry policy, market-specific paper validation, and explicit live approval must be completed before either domain can submit LIVE orders.
+This repository does not send real orders. Authenticated order submission, timeout reconciliation, idempotent exchange identity, supervised PAPER evidence, and explicit live approval must be completed before crypto LIVE orders can be considered. The US-stock domain requires its own independent broker, market data, state, risk, validation, and approval boundaries.
