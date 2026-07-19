@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from aipro.core.auth_adapters import AuthorizationAuditEvent, AuthorizationAuditStore
-from aipro.core.live_authorization import LiveAuthorizationManager, LiveAuthorizationState
+from aipro.core.live_authorization import AuthorizationStage, LiveAuthorizationManager, LiveAuthorizationState
 
 
 class AuthorizationStateStore:
@@ -21,6 +21,7 @@ class AuthorizationStateStore:
         payload = json.loads(self.path.read_text(encoding="utf-8"))
         if not isinstance(payload, dict):
             raise RuntimeError("invalid authorization state file")
+        payload["stage"] = AuthorizationStage(payload.get("stage", AuthorizationStage.LOCKED.value))
         return LiveAuthorizationState(**payload)
 
     def save(self, state: LiveAuthorizationState) -> None:
