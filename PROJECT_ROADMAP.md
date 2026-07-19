@@ -26,30 +26,29 @@ Development order is offline tests, backtesting, paper trading, live-readiness r
 
 ## Current status
 
-Overall completion: **94%**
+Overall completion: **96%**
 
 ### Completed
 
 - [x] Entry-point structure and crypto runtime ownership through `aipro/crypto/application.py`
 - [x] PAPER default, double LIVE guard, persistent KST baseline, and HALTED latch
-- [x] Persistent PAPER cash, positions, average prices, immutable order IDs, and restart recovery
+- [x] Persistent PAPER cash, positions, immutable order IDs, and restart recovery
 - [x] Historical replay, strict CSV validation, dataset fingerprinting, and readiness reports
 - [x] Independent crypto and disabled-by-default US-stock namespaces
-- [x] Upbit public quotation adapter with source freshness and provider-health gates
-- [x] Isolated GET-only authenticated Upbit inspection with secret-safe configuration
-- [x] Immutable read-only account snapshots and database mutation blocking
+- [x] Upbit public quotation adapter with freshness and provider-health gates
+- [x] Isolated GET-only authenticated Upbit inspection and immutable snapshots
 - [x] Fail-closed order lookup and duplicate-resubmission blocking
 - [x] Immutable `MATCH`, `MISMATCH`, and `STALE` comparison evidence
 - [x] Deterministic supervised PAPER validation and append-only evidence
-- [x] Recent comparison evidence required for validation PASS
-- [x] Missing, `MISMATCH`, `STALE`, and expired `MATCH` evidence fail closed
-- [x] Comparison metadata and fingerprint are included without mutating PAPER state
-- [x] Regression tests for persistence, reconciliation, validation, and namespace isolation
-- [x] GitHub Actions regression workflow
+- [x] Recent `MATCH` comparison evidence required for validation PASS
+- [x] Missing, mismatched, stale, or expired evidence fails closed
+- [x] Restart-safe `/ai_upbit_go -> /confirm -> /go` approval state machine
+- [x] Expiring approval state, invalid-order rejection, and Telegram status reporting
+- [x] Regression tests and GitHub Actions workflow
 
 ### In progress
 
-- [ ] Confirm the comparison-validation feature branch in GitHub Actions
+- [ ] Confirm the live-approval feature branch in GitHub Actions
 - [ ] Perform a supervised least-privilege read-only account probe with a real IP-restricted key
 - [ ] Validate Upbit public market data during sustained supervised PAPER operation
 - [ ] Complete compatibility cleanup for legacy root-level crypto imports
@@ -58,8 +57,7 @@ Overall completion: **94%**
 
 #### Crypto
 
-- [ ] `/ai_upbit_go -> /confirm -> /go` expiring and restart-safe approval flow
-- [ ] Authenticated order submission, kept absent until all readiness gates pass
+- [ ] Authenticated order submission, kept absent until every readiness and supervised-operation gate passes
 
 #### US stocks
 
@@ -80,43 +78,45 @@ Overall completion: **94%**
 ## Current behavior
 
 1. Execution remains `run.py -> telegram.py -> main.py -> TradingApplication`.
-2. PAPER is the source of truth and authenticated inspection cannot alter strategy, balances, orders, or baselines.
-3. Exchange snapshots and comparison results are append-only evidence.
-4. Supervised PAPER validation now requires comparison evidence that is present, exactly `MATCH`, and no older than the configured maximum age, 300 seconds by default.
-5. A validation `PASS` is readiness evidence only and never authorizes LIVE trading.
-6. Order creation, cancellation, withdrawal, deposit management, and mutation endpoints remain absent or blocked.
+2. PAPER remains the source of truth; authenticated inspection cannot alter strategy, balances, orders, or baselines.
+3. Exchange snapshots, comparisons, validation results, and approval events are persistent evidence.
+4. Supervised PAPER validation requires recent `MATCH` evidence.
+5. LIVE approval must follow the exact expiring three-command sequence and survives restart.
+6. Completing the approval sequence records intent only; it never enables LIVE mode or submits orders.
+7. Existing `/go` HALTED recovery works only when no LIVE approval sequence is active.
+8. Order creation, cancellation, withdrawal, deposit management, and mutation endpoints remain absent or blocked.
 
 ## Current gaps and risks
 
 1. Real least-privilege Upbit credentials have not been exercised in supervised operation.
-2. Local evidence databases contain sensitive financial and operational values and require restrictive permissions and protected backups.
-3. Runtime observations are still supplied explicitly rather than collected automatically.
-4. Sustained PAPER operation has not yet proven exchange timestamp tolerances and sparse-market behavior.
-5. Backtests use fixed slippage and do not yet model depth or partial fills.
+2. Sustained PAPER operation has not yet proven timestamp tolerances and sparse-market behavior.
+3. Runtime validation observations are still supplied explicitly rather than collected automatically.
+4. Backtests use fixed slippage and do not model depth or partial fills.
+5. Approval completion is not an authorization to trade; authenticated order submission remains intentionally absent.
 6. Evidence export signing and retention/deletion policy are not implemented.
-7. US-stock broker, market data, FX, tax, calendar, and fractional-share behavior remain intentionally undecided.
+7. US-stock broker, market data, FX, tax, calendar, and fractional-share behavior remain undecided.
 
 ## Immediate priority
 
 ### P0 — Confirm CI
 
-- Require all branch tests to pass.
-- Verify deterministic fingerprints and fail-closed comparison cases.
+- Require the full feature-branch regression suite to pass.
+- Verify sequence ordering, restart recovery, expiry, and fail-closed behavior.
 
-### P1 — Live approval state machine
-
-- Implement `/ai_upbit_go -> /confirm -> /go` as an expiring, restart-safe sequence.
-- Keep order submission absent.
-
-### P2 — Supervised crypto PAPER operation
+### P1 — Supervised crypto PAPER operation
 
 - Record at least 24 completed cycles, restart recovery, HALTED behavior, provider health, source freshness, unique order IDs, runtime stability, and recent `MATCH` evidence.
 - Persist immutable evidence to a protected local database.
 
-### P3 — Shared intelligence foundation
+### P2 — Shared intelligence foundation
 
 - Add replaceable news-provider contracts and normalized article models.
 - Add sentiment, macro-regime, filing-event, chart-pattern, and EV sizing layers without coupling them directly to order submission.
+
+### P3 — Live-readiness review
+
+- Keep authenticated order submission absent until supervised operation and all safety evidence pass.
+- Reassess API permissions, credential storage, partial fills, timeout reconciliation, and explicit operator authorization before any order adapter exists.
 
 ## Completion policy
 
@@ -124,4 +124,4 @@ A task is complete only when implementation, tests, documentation, limitations, 
 
 ## Next action
 
-Confirm feature-branch CI, then implement the expiring restart-safe live approval state machine while keeping authenticated order submission absent.
+Confirm feature-branch CI, then begin the provider-neutral shared news intelligence foundation while supervised PAPER operation remains the prerequisite for any future authenticated order submission.
