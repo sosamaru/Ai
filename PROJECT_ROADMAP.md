@@ -35,7 +35,7 @@ Each asset domain must pass this sequence independently. Capital, broker state, 
 
 ## Current status
 
-Overall completion: **86%**
+Overall completion: **88%**
 
 ### Completed
 
@@ -53,27 +53,27 @@ Overall completion: **86%**
 - [x] Validated ticker/candle momentum, volatility, and source timestamps
 - [x] Market-data latency, source-age, failure-count, and fail-closed execution gate
 - [x] Isolated authenticated Upbit read-only account client
-- [x] Secret-safe credential loading from `AIPRO_UPBIT_ACCESS_KEY` and `AIPRO_UPBIT_SECRET_KEY`
-- [x] HS512 JWT generation with per-request nonce and SHA-512 query hash
-- [x] GET-only balance, single-order, and open-order inspection
+- [x] Secret-safe credential loading and GET-only account/order inspection
 - [x] Network-level blocking of non-read-only private endpoints
-- [x] Authentication, permission, timeout, retry, duplicate-ID, and response-validation tests
-- [x] Guarded supervised read-only verification command with redacted JSON evidence
-- [x] Verification tests for explicit opt-in, fail-closed behavior, and secret/value redaction
-- [x] GitHub Actions regression tests for all previously completed components
+- [x] Guarded supervised read-only verification with redacted JSON evidence
+- [x] Immutable Upbit account snapshot persistence in a dedicated crypto exchange namespace
+- [x] Snapshot timestamp, age calculation, SHA-256 fingerprint, and reconciliation status
+- [x] Database-level update/delete blocking for exchange snapshots
+- [x] Tests for explicit opt-in, fail-closed behavior, redaction, persistence, and namespace isolation
+- [x] GitHub Actions regression tests for all previously merged components
 
 ### In progress
 
-- [ ] Complete remaining compatibility cleanup for legacy root-level crypto imports
+- [ ] Confirm the new snapshot feature-branch regression suite in GitHub Actions
+- [ ] Perform a supervised least-privilege read-only account probe with a real API key
 - [ ] Validate Upbit public market data during sustained supervised PAPER operation
-- [ ] Perform the new supervised least-privilege read-only account probe with a real API key
-- [ ] Confirm the feature-branch regression suite in GitHub Actions
+- [ ] Complete remaining compatibility cleanup for legacy root-level crypto imports
 
 ### Not started
 
 #### Crypto
 
-- [ ] Persist read-only exchange account snapshots without mixing them into PAPER balances
+- [ ] Compare immutable exchange snapshots with PAPER observations without replacing PAPER state
 - [ ] Exchange order-ID reconciliation after timeout
 - [ ] `/ai_upbit_go -> /confirm -> /go` live approval flow
 - [ ] Authenticated order submission, disabled until readiness and supervised PAPER gates pass
@@ -104,44 +104,43 @@ Overall completion: **86%**
 4. `AIPRO_MARKET_DATA_PROVIDER=DEMO` remains the safe offline default.
 5. Upbit public market data remains separate from authenticated account inspection.
 6. Authenticated account inspection is not wired into strategy decisions, PAPER balances, or order submission.
-7. Upbit credentials are loaded only when explicitly requested.
-8. Credential values are excluded from dataclass representations and error messages.
-9. Private requests use HS512 JWT Bearer authentication with a new nonce for every attempt.
-10. Query-bearing requests include a SHA-512 hash of the exact query string.
-11. The private client permits only approved GET account/order-inspection paths.
-12. Order creation, cancellation, deposit, withdrawal, and mutation endpoints are blocked before network access.
-13. The supervised verification command additionally requires `AIPRO_UPBIT_READONLY_VERIFY=YES`.
-14. Verification output omits balances, average prices, order UUIDs, identifiers, credentials, and Authorization headers.
-15. PAPER state remains the source of truth for simulated trading.
+7. The supervised verification command requires `AIPRO_UPBIT_READONLY_VERIFY=YES`.
+8. Setting `AIPRO_UPBIT_SNAPSHOT_DB` appends the observation to `exchange_account_snapshots`.
+9. Exchange snapshot rows are append-only; database triggers reject updates and deletes.
+10. Stored exchange values never replace PAPER cash, positions, orders, baselines, or strategy inputs.
+11. Verification console output remains redacted even when the full local snapshot is persisted.
+12. Order creation, cancellation, deposit, withdrawal, and mutation endpoints remain absent or blocked.
+13. PAPER state remains the source of truth for simulated trading.
 
 ## Current gaps and risks
 
-1. The authenticated client and verification command have passed deterministic tests but have not yet been exercised with a real least-privilege Upbit API key.
-2. A real API key must be restricted by IP and limited to account/order-view permissions; order and withdrawal permissions must remain disabled.
-3. Read-only exchange snapshots are not yet persisted or compared with PAPER state.
-4. Timeout reconciliation and immutable exchange-order identity rules remain unimplemented.
-5. Upbit candle intervals with no trades may be absent; sparse markets can fail validation.
-6. Backtests still use fixed slippage and do not model order-book depth or partial fills.
-7. Exchange timestamp tolerance still requires sustained PAPER observation.
-8. Archived evidence has no signed export and deletion policy.
-9. US-stock broker, data, calendar, FX, tax, and fractional-share behavior remain unimplemented.
-10. Legacy baseline keys remain for rollback compatibility and need a retirement version before removal.
+1. The authenticated client, verification command, and snapshot store have deterministic tests but have not yet been exercised with a real least-privilege Upbit API key.
+2. A real API key must be IP-restricted and limited to account/order-view permissions; order and withdrawal permissions must remain disabled.
+3. Full local snapshots contain sensitive financial values and exchange order identifiers; the database file needs restrictive filesystem permissions and backup controls.
+4. Snapshot reconciliation is initially `UNCOMPARED`; PAPER comparison rules are not yet implemented.
+5. Timeout reconciliation and immutable exchange-order identity rules remain unimplemented.
+6. Upbit candle intervals with no trades may be absent; sparse markets can fail validation.
+7. Backtests still use fixed slippage and do not model order-book depth or partial fills.
+8. Exchange timestamp tolerance still requires sustained PAPER observation.
+9. Archived evidence has no signed export and deletion policy.
+10. US-stock broker, data, calendar, FX, tax, and fractional-share behavior remain unimplemented.
+11. Legacy baseline keys remain for rollback compatibility and need a retirement version before removal.
 
 ## Immediate priority
 
-### P0 — Run supervised read-only account verification
+### P0 — Confirm snapshot CI and run supervised verification
 
-- Use an API key with only account and order-view permissions.
+- Require all feature-branch tests to pass.
+- Use an IP-restricted API key with only account-view and order-view permissions.
 - Keep order, withdrawal, and deposit-management permissions disabled.
-- Restrict the key to the supervised machine's public IP.
-- Run `python -m aipro.crypto.verify_readonly` with the explicit verification guard.
-- Record only the redacted JSON report and operational result.
+- Persist one supervised snapshot to a locally protected database.
+- Record only the redacted console report outside the machine.
 
-### P1 — Read-only account snapshot persistence
+### P1 — Read-only snapshot comparison
 
-- Store exchange snapshots in a separate immutable namespace.
-- Never replace PAPER cash, positions, or daily baseline with exchange values.
-- Add snapshot age, fingerprint, and reconciliation status.
+- Define comparison-only rules against PAPER observations.
+- Never mutate PAPER cash, positions, orders, or baseline from exchange data.
+- Produce `MATCH`, `MISMATCH`, or `STALE` as new immutable reconciliation evidence rather than editing prior snapshots.
 
 ### P2 — Exchange order reconciliation design
 
@@ -161,4 +160,4 @@ A task is complete only when implementation, tests, documentation, limitations, 
 
 ## Next action
 
-Confirm feature-branch CI, perform one least-privilege supervised read-only probe, then implement immutable read-only exchange snapshot persistence without connecting exchange values to PAPER balances or strategy decisions.
+Confirm feature-branch CI, perform one supervised read-only snapshot capture with a least-privilege key, then implement comparison-only reconciliation evidence without connecting exchange values to PAPER balances or strategy decisions.
