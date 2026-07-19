@@ -27,7 +27,7 @@ Development order is offline tests, backtesting, paper trading, live-readiness r
 
 ## Current status
 
-Overall completion: **97%**
+Overall completion: **98%**
 
 ### Completed
 
@@ -43,16 +43,16 @@ Overall completion: **97%**
 - [x] Deterministic supervised PAPER validation and append-only evidence
 - [x] Recent `MATCH` comparison evidence required for validation PASS
 - [x] Restart-safe `/ai_upbit_go -> /confirm -> /go` approval state machine
-- [x] Expiring approval state, invalid-order rejection, and Telegram status reporting
 - [x] Provider-neutral normalized news article and sentiment contracts
-- [x] Multi-provider news collection with provider-health isolation
-- [x] URL/headline deduplication, symbol relevance, and confidence-weighted sentiment fusion
+- [x] Multi-provider news collection and provider-health isolation
 - [x] Finnhub company-news and Alpha Vantage sentiment adapters
+- [x] Bounded retry, sliding-window rate limits, circuit breaker, and TTL cache
+- [x] Append-only intelligence execution evidence with mutation blocking
 - [x] Regression tests and GitHub Actions workflow
 
 ### In progress
 
-- [ ] Confirm the news-intelligence feature branch in GitHub Actions
+- [ ] Confirm the intelligence-resilience feature branch in GitHub Actions
 - [ ] Perform a supervised least-privilege read-only account probe with a real IP-restricted key
 - [ ] Validate Upbit public market data during sustained supervised PAPER operation
 - [ ] Complete compatibility cleanup for legacy root-level crypto imports
@@ -71,8 +71,6 @@ Overall completion: **97%**
 
 #### Shared intelligence
 
-- [ ] Append-only news cache and ingestion evidence
-- [ ] Provider retry, rate-limit, freshness, and circuit-breaker policy
 - [ ] Native provider sentiment mapping and event classification
 - [ ] FRED macroeconomic regime inputs
 - [ ] SEC EDGAR filing analysis
@@ -85,13 +83,13 @@ Overall completion: **97%**
 
 1. Execution remains `run.py -> telegram.py -> main.py -> TradingApplication`.
 2. PAPER remains the source of truth; authenticated inspection cannot alter strategy, balances, orders, or baselines.
-3. Exchange snapshots, comparisons, validation results, and approval events are persistent evidence.
+3. Exchange snapshots, comparisons, validation results, approval events, and intelligence execution evidence are persistent safety evidence.
 4. Supervised PAPER validation requires recent `MATCH` evidence.
-5. LIVE approval must follow the exact expiring three-command sequence and survives restart.
-6. Completing the approval sequence records intent only; it never enables LIVE mode or submits orders.
-7. News providers are replaceable and return normalized deterministic article records.
-8. News provider failures are visible in provider health and cannot fabricate strategy input.
-9. News and sentiment remain disconnected from order submission until PAPER feature validation is implemented.
+5. Completing the LIVE approval sequence records intent only; it never enables LIVE mode or submits orders.
+6. News providers are replaceable and return normalized deterministic records.
+7. Provider calls can be bounded by retry, local rate limits, circuit breakers, and cache TTL.
+8. Open circuits and exceeded local rate limits fail closed.
+9. Intelligence evidence stores no credentials or Authorization headers and cannot mutate trading state.
 10. Order creation, cancellation, withdrawal, deposit management, and mutation endpoints remain absent or blocked.
 
 ## Current gaps and risks
@@ -101,8 +99,8 @@ Overall completion: **97%**
 3. Runtime validation observations are still supplied explicitly rather than collected automatically.
 4. Backtests use fixed slippage and do not model depth or partial fills.
 5. Approval completion is not an authorization to trade; authenticated order submission remains intentionally absent.
-6. News adapters do not yet have persistent cache, rate-limit evidence, retries, or circuit breakers.
-7. Alpha Vantage native ticker sentiment values are not yet preserved in normalized observations.
+6. Alpha Vantage native ticker sentiment values are not yet preserved in normalized observations.
+7. Provider freshness policy is represented by cache TTL but not yet connected to PAPER feature eligibility.
 8. Evidence export signing and retention/deletion policy are not implemented.
 9. US-stock broker, market data, FX, tax, calendar, and fractional-share behavior remain undecided.
 
@@ -110,13 +108,13 @@ Overall completion: **97%**
 
 ### P0 — Confirm CI
 
-- Require the full news-intelligence regression suite to pass.
-- Verify normalization, deterministic fingerprinting, deduplication, provider isolation, and sentiment fusion.
+- Require the full intelligence-resilience regression suite to pass.
+- Verify retry bounds, circuit transitions, rate-limit blocking, cache expiry, and immutable evidence.
 
-### P1 — Persistent news ingestion
+### P1 — Event and native sentiment intelligence
 
-- Add append-only cache and ingestion evidence with freshness and provider metadata.
-- Add bounded retries, rate-limit handling, and provider circuit breakers.
+- Preserve provider-native ticker sentiment and normalize event categories.
+- Add deterministic feature snapshots without connecting them to order submission.
 
 ### P2 — Macro and filing intelligence
 
@@ -134,4 +132,4 @@ A task is complete only when implementation, tests, documentation, limitations, 
 
 ## Next action
 
-Confirm feature-branch CI, then add append-only news ingestion evidence and provider resilience before connecting normalized intelligence features to PAPER strategy evaluation.
+Confirm feature-branch CI, then add provider-native sentiment and event classification before producing deterministic PAPER-only intelligence feature snapshots.
