@@ -35,7 +35,7 @@ Each asset domain must pass this sequence independently. Capital, broker state, 
 
 ## Current status
 
-Overall completion: **88%**
+Overall completion: **90%**
 
 ### Completed
 
@@ -59,12 +59,16 @@ Overall completion: **88%**
 - [x] Immutable Upbit account snapshot persistence in a dedicated crypto exchange namespace
 - [x] Snapshot timestamp, age calculation, SHA-256 fingerprint, and reconciliation status
 - [x] Database-level update/delete blocking for exchange snapshots
-- [x] Tests for explicit opt-in, fail-closed behavior, redaction, persistence, and namespace isolation
+- [x] Fail-closed exchange order lookup by UUID and client identifier
+- [x] Duplicate-resubmission blocking after ambiguous timeout outcomes
+- [x] Comparison-only `MATCH`, `MISMATCH`, and `STALE` snapshot evidence
+- [x] Immutable comparison evidence store separated from exchange and PAPER state
+- [x] Tests for explicit opt-in, fail-closed behavior, redaction, persistence, reconciliation, and namespace isolation
 - [x] GitHub Actions regression tests for all previously merged components
 
 ### In progress
 
-- [ ] Confirm the new snapshot feature-branch regression suite in GitHub Actions
+- [ ] Confirm the snapshot-comparison feature-branch regression suite in GitHub Actions
 - [ ] Perform a supervised least-privilege read-only account probe with a real API key
 - [ ] Validate Upbit public market data during sustained supervised PAPER operation
 - [ ] Complete remaining compatibility cleanup for legacy root-level crypto imports
@@ -73,8 +77,7 @@ Overall completion: **88%**
 
 #### Crypto
 
-- [ ] Compare immutable exchange snapshots with PAPER observations without replacing PAPER state
-- [ ] Exchange order-ID reconciliation after timeout
+- [ ] Integrate comparison evidence into supervised PAPER readiness reporting without mutating PAPER state
 - [ ] `/ai_upbit_go -> /confirm -> /go` live approval flow
 - [ ] Authenticated order submission, disabled until readiness and supervised PAPER gates pass
 
@@ -107,18 +110,21 @@ Overall completion: **88%**
 7. The supervised verification command requires `AIPRO_UPBIT_READONLY_VERIFY=YES`.
 8. Setting `AIPRO_UPBIT_SNAPSHOT_DB` appends the observation to `exchange_account_snapshots`.
 9. Exchange snapshot rows are append-only; database triggers reject updates and deletes.
-10. Stored exchange values never replace PAPER cash, positions, orders, baselines, or strategy inputs.
-11. Verification console output remains redacted even when the full local snapshot is persisted.
-12. Order creation, cancellation, deposit, withdrawal, and mutation endpoints remain absent or blocked.
-13. PAPER state remains the source of truth for simulated trading.
+10. Snapshot comparisons read explicit PAPER observations and never replace PAPER cash, positions, orders, baselines, or strategy inputs.
+11. Comparison results are append-only evidence in `exchange_snapshot_comparison_evidence`.
+12. Stale snapshots produce `STALE` even when their content otherwise matches.
+13. Ambiguous exchange-order outcomes block resubmission.
+14. Verification console output remains redacted even when full local evidence is persisted.
+15. Order creation, cancellation, deposit, withdrawal, and mutation endpoints remain absent or blocked.
+16. PAPER state remains the source of truth for simulated trading.
 
 ## Current gaps and risks
 
-1. The authenticated client, verification command, and snapshot store have deterministic tests but have not yet been exercised with a real least-privilege Upbit API key.
+1. The authenticated client, verification command, snapshot store, and comparison evidence have deterministic tests but have not yet been exercised with a real least-privilege Upbit API key.
 2. A real API key must be IP-restricted and limited to account/order-view permissions; order and withdrawal permissions must remain disabled.
-3. Full local snapshots contain sensitive financial values and exchange order identifiers; the database file needs restrictive filesystem permissions and backup controls.
-4. Snapshot reconciliation is initially `UNCOMPARED`; PAPER comparison rules are not yet implemented.
-5. Timeout reconciliation and immutable exchange-order identity rules remain unimplemented.
+3. Full local snapshots and comparison evidence contain sensitive financial values and exchange order identifiers; database files need restrictive filesystem permissions and backup controls.
+4. Comparison evidence is not yet surfaced in the PAPER-readiness report or Telegram status.
+5. Exchange-order reconciliation intentionally never permits retry submission in the current phase.
 6. Upbit candle intervals with no trades may be absent; sparse markets can fail validation.
 7. Backtests still use fixed slippage and do not model order-book depth or partial fills.
 8. Exchange timestamp tolerance still requires sustained PAPER observation.
@@ -128,31 +134,30 @@ Overall completion: **88%**
 
 ## Immediate priority
 
-### P0 — Confirm snapshot CI and run supervised verification
+### P0 — Confirm comparison CI and run supervised verification
 
 - Require all feature-branch tests to pass.
 - Use an IP-restricted API key with only account-view and order-view permissions.
 - Keep order, withdrawal, and deposit-management permissions disabled.
-- Persist one supervised snapshot to a locally protected database.
-- Record only the redacted console report outside the machine.
+- Persist one supervised snapshot and one comparison result to locally protected databases.
+- Record only redacted operational reports outside the machine.
 
-### P1 — Read-only snapshot comparison
+### P1 — PAPER-readiness evidence integration
 
-- Define comparison-only rules against PAPER observations.
-- Never mutate PAPER cash, positions, orders, or baseline from exchange data.
-- Produce `MATCH`, `MISMATCH`, or `STALE` as new immutable reconciliation evidence rather than editing prior snapshots.
+- Surface latest comparison status, age, and evidence fingerprint in readiness reporting.
+- Fail readiness when evidence is `MISMATCH` or `STALE`.
+- Never mutate PAPER state from exchange evidence.
 
-### P2 — Exchange order reconciliation design
+### P2 — Live approval state machine
 
-- Define timeout lookup using exchange UUID and client identifier.
-- Prevent duplicate submission after ambiguous network outcomes.
-- Keep submission code absent until read-only inspection and supervised PAPER gates pass.
+- Implement `/ai_upbit_go -> /confirm -> /go` as an expiring, restart-safe approval sequence.
+- Keep authenticated order submission absent until all readiness gates pass.
 
 ### P3 — Supervised crypto PAPER validation
 
 - Run validated historical datasets through the readiness gate.
 - Record dataset fingerprint, strategy/config version, and observation period.
-- Require stable restart, HALTED, provider-health, and source-timestamp behavior.
+- Require stable restart, HALTED, provider-health, source-timestamp, and comparison-evidence behavior.
 
 ## Completion policy
 
@@ -160,4 +165,4 @@ A task is complete only when implementation, tests, documentation, limitations, 
 
 ## Next action
 
-Confirm feature-branch CI, perform one supervised read-only snapshot capture with a least-privilege key, then implement comparison-only reconciliation evidence without connecting exchange values to PAPER balances or strategy decisions.
+Confirm feature-branch CI, perform one supervised least-privilege snapshot comparison, then integrate immutable comparison status into PAPER-readiness reporting without connecting exchange values to strategy decisions or balances.
