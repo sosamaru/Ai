@@ -7,6 +7,8 @@ from datetime import UTC, datetime
 import pytest
 
 from aipro.core.auth_adapters import AuthorizationAuditEvent, AuthorizationAuditStore, TotpVerifier
+from aipro.core.live_authorization import AuthorizationStage, LiveAuthorizationState
+from aipro.core.live_authorization_store import LiveAuthorizationStateStore
 from aipro.crypto.upbit_preflight import UpbitOrderPreflightClient, UpbitTestOrderRequest
 from aipro.us_stocks.alpaca_paper import AlpacaPaperClient, AlpacaPaperOrderRequest
 from aipro.us_stocks.paper_evidence import AlpacaPaperEvidenceCollector, PaperEvidenceStore
@@ -31,13 +33,19 @@ def test_authorization_audit_is_append_only(tmp_path) -> None:
         db.execute("DELETE FROM authorization_audit")
 
 
+def test_authorization_state_survives_restart(tmp_path) -> None:
+    store = LiveAuthorizationStateStore(tmp_path / "authorization.json")
+    state = LiveAuthorizationState(stage=AuthorizationStage.ACTIVE, recipient_hash="a" * 64, activated_at_utc=datetime.now(UTC).isoformat(), lease_expires_at_utc="2099-01-01T00:00:00+00:00")
+    store.save(state)
+    loaded = store.load()
+    assert loaded.stage == AuthorizationStage.ACTIVE
+    assert loaded.recipient_hash == state.recipient_hash
+
+
 def test_alpaca_client_rejects_live_domain_and_validates_order() -> None:
     with pytest.raises(ValueError):
         AlpacaPaperClient(key_id="k", secret_key="s", base_url="https://api.alpaca.markets")
-    payload = AlpacaPaperOrderRequest(
-        symbol="AAPL", side="buy", order_type="market", time_in_force="day",
-        client_order_id="unique-1", qty="1"
-    ).to_payload()
+    payload = AlpacaPaperOrderRequest(symbol="AAPL", side="buy", order_type="market", time_in_force="day", client_order_id="unique-1", qty="1").to_payload()
     assert payload["symbol"] == "AAPL"
     assert payload["qty"] == "1"
 
