@@ -13,6 +13,7 @@ Asset domains remain isolated:
 - `aipro/core/` — asset-neutral contracts and safety boundaries
 - `aipro/crypto/` — crypto-specific configuration, adapters, and strategies
 - `aipro/us_stocks/` — US-stock-specific configuration, adapters, and strategies
+- `aipro/intelligence/` — broker-neutral news, sentiment, macro, filing, and feature inputs
 
 Development order is offline tests, backtesting, paper trading, live-readiness review, and explicitly approved live trading. Each asset domain must pass this sequence independently. Capital, broker state, risk limits, order IDs, approval state, credentials, and daily performance baselines must never be shared implicitly.
 
@@ -26,7 +27,7 @@ Development order is offline tests, backtesting, paper trading, live-readiness r
 
 ## Current status
 
-Overall completion: **96%**
+Overall completion: **97%**
 
 ### Completed
 
@@ -41,14 +42,17 @@ Overall completion: **96%**
 - [x] Immutable `MATCH`, `MISMATCH`, and `STALE` comparison evidence
 - [x] Deterministic supervised PAPER validation and append-only evidence
 - [x] Recent `MATCH` comparison evidence required for validation PASS
-- [x] Missing, mismatched, stale, or expired evidence fails closed
 - [x] Restart-safe `/ai_upbit_go -> /confirm -> /go` approval state machine
 - [x] Expiring approval state, invalid-order rejection, and Telegram status reporting
+- [x] Provider-neutral normalized news article and sentiment contracts
+- [x] Multi-provider news collection with provider-health isolation
+- [x] URL/headline deduplication, symbol relevance, and confidence-weighted sentiment fusion
+- [x] Finnhub company-news and Alpha Vantage sentiment adapters
 - [x] Regression tests and GitHub Actions workflow
 
 ### In progress
 
-- [ ] Confirm the live-approval feature branch in GitHub Actions
+- [ ] Confirm the news-intelligence feature branch in GitHub Actions
 - [ ] Perform a supervised least-privilege read-only account probe with a real IP-restricted key
 - [ ] Validate Upbit public market data during sustained supervised PAPER operation
 - [ ] Complete compatibility cleanup for legacy root-level crypto imports
@@ -67,7 +71,9 @@ Overall completion: **96%**
 
 #### Shared intelligence
 
-- [ ] Provider-based news ingestion: Finnhub primary, Alpha Vantage sentiment support
+- [ ] Append-only news cache and ingestion evidence
+- [ ] Provider retry, rate-limit, freshness, and circuit-breaker policy
+- [ ] Native provider sentiment mapping and event classification
 - [ ] FRED macroeconomic regime inputs
 - [ ] SEC EDGAR filing analysis
 - [ ] Chart-pattern features
@@ -83,8 +89,10 @@ Overall completion: **96%**
 4. Supervised PAPER validation requires recent `MATCH` evidence.
 5. LIVE approval must follow the exact expiring three-command sequence and survives restart.
 6. Completing the approval sequence records intent only; it never enables LIVE mode or submits orders.
-7. Existing `/go` HALTED recovery works only when no LIVE approval sequence is active.
-8. Order creation, cancellation, withdrawal, deposit management, and mutation endpoints remain absent or blocked.
+7. News providers are replaceable and return normalized deterministic article records.
+8. News provider failures are visible in provider health and cannot fabricate strategy input.
+9. News and sentiment remain disconnected from order submission until PAPER feature validation is implemented.
+10. Order creation, cancellation, withdrawal, deposit management, and mutation endpoints remain absent or blocked.
 
 ## Current gaps and risks
 
@@ -93,30 +101,32 @@ Overall completion: **96%**
 3. Runtime validation observations are still supplied explicitly rather than collected automatically.
 4. Backtests use fixed slippage and do not model depth or partial fills.
 5. Approval completion is not an authorization to trade; authenticated order submission remains intentionally absent.
-6. Evidence export signing and retention/deletion policy are not implemented.
-7. US-stock broker, market data, FX, tax, calendar, and fractional-share behavior remain undecided.
+6. News adapters do not yet have persistent cache, rate-limit evidence, retries, or circuit breakers.
+7. Alpha Vantage native ticker sentiment values are not yet preserved in normalized observations.
+8. Evidence export signing and retention/deletion policy are not implemented.
+9. US-stock broker, market data, FX, tax, calendar, and fractional-share behavior remain undecided.
 
 ## Immediate priority
 
 ### P0 — Confirm CI
 
-- Require the full feature-branch regression suite to pass.
-- Verify sequence ordering, restart recovery, expiry, and fail-closed behavior.
+- Require the full news-intelligence regression suite to pass.
+- Verify normalization, deterministic fingerprinting, deduplication, provider isolation, and sentiment fusion.
 
-### P1 — Supervised crypto PAPER operation
+### P1 — Persistent news ingestion
+
+- Add append-only cache and ingestion evidence with freshness and provider metadata.
+- Add bounded retries, rate-limit handling, and provider circuit breakers.
+
+### P2 — Macro and filing intelligence
+
+- Add FRED macro-regime inputs and SEC EDGAR filing-event normalization.
+- Keep all intelligence features broker-neutral and PAPER-only.
+
+### P3 — Supervised crypto PAPER operation
 
 - Record at least 24 completed cycles, restart recovery, HALTED behavior, provider health, source freshness, unique order IDs, runtime stability, and recent `MATCH` evidence.
 - Persist immutable evidence to a protected local database.
-
-### P2 — Shared intelligence foundation
-
-- Add replaceable news-provider contracts and normalized article models.
-- Add sentiment, macro-regime, filing-event, chart-pattern, and EV sizing layers without coupling them directly to order submission.
-
-### P3 — Live-readiness review
-
-- Keep authenticated order submission absent until supervised operation and all safety evidence pass.
-- Reassess API permissions, credential storage, partial fills, timeout reconciliation, and explicit operator authorization before any order adapter exists.
 
 ## Completion policy
 
@@ -124,4 +134,4 @@ A task is complete only when implementation, tests, documentation, limitations, 
 
 ## Next action
 
-Confirm feature-branch CI, then begin the provider-neutral shared news intelligence foundation while supervised PAPER operation remains the prerequisite for any future authenticated order submission.
+Confirm feature-branch CI, then add append-only news ingestion evidence and provider resilience before connecting normalized intelligence features to PAPER strategy evaluation.
