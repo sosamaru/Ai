@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -61,7 +62,6 @@ def test_smtp_sender_builds_message_without_exposing_password() -> None:
 
 
 def test_totp_matches_rfc_vector() -> None:
-    # RFC 6238 SHA-1 test secret: b"12345678901234567890"
     secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
     verifier = TotpVerifier(secret, digits=8, period_seconds=30, window=0)
     assert verifier.verify("94287082", at_utc=datetime.fromtimestamp(59, tz=UTC))
@@ -153,7 +153,7 @@ def test_live_execution_gate_requires_every_condition() -> None:
     )
     assert evaluate_live_execution(valid, now_utc=now).allowed is True
 
-    invalid = LiveExecutionInputs(**{**valid.__dict__, "risk_limits_passed": False})
+    invalid = replace(valid, risk_limits_passed=False)
     decision = evaluate_live_execution(invalid, now_utc=now)
     assert decision.allowed is False
     assert "RISK_LIMIT_FAILED" in decision.reasons
