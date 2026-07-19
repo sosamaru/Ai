@@ -16,12 +16,12 @@ def _b64url(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
 
 
-def _jwt_hs256(payload: dict[str, Any], secret: str) -> str:
-    header = {"alg": "HS256", "typ": "JWT"}
+def _jwt_hs512(payload: dict[str, Any], secret: str) -> str:
+    header = {"alg": "HS512", "typ": "JWT"}
     encoded_header = _b64url(json.dumps(header, separators=(",", ":"), sort_keys=True).encode("utf-8"))
     encoded_payload = _b64url(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8"))
     signing_input = f"{encoded_header}.{encoded_payload}".encode("ascii")
-    signature = hmac.new(secret.encode("utf-8"), signing_input, hashlib.sha256).digest()
+    signature = hmac.new(secret.encode("utf-8"), signing_input, hashlib.sha512).digest()
     return f"{encoded_header}.{encoded_payload}.{_b64url(signature)}"
 
 
@@ -47,7 +47,12 @@ class UpbitTestOrderRequest:
         if self.ord_type == "best" and not self.time_in_force:
             raise ValueError("time_in_force is required for best orders")
         payload = {"market": self.market, "side": self.side, "ord_type": self.ord_type}
-        for key, value in (("volume", self.volume), ("price", self.price), ("time_in_force", self.time_in_force), ("identifier", self.identifier)):
+        for key, value in (
+            ("volume", self.volume),
+            ("price", self.price),
+            ("time_in_force", self.time_in_force),
+            ("identifier", self.identifier),
+        ):
             if value:
                 payload[key] = value
         return payload
@@ -78,7 +83,7 @@ class UpbitOrderPreflightClient:
             "query_hash": hashlib.sha512(query_string.encode("utf-8")).hexdigest(),
             "query_hash_alg": "SHA512",
         }
-        return f"Bearer {_jwt_hs256(jwt_payload, self.secret_key)}"
+        return f"Bearer {_jwt_hs512(jwt_payload, self.secret_key)}"
 
     def test_order(self, order: UpbitTestOrderRequest) -> dict[str, Any]:
         payload = order.to_payload()
