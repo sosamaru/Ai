@@ -8,12 +8,30 @@ from aipro.intelligence.news import (
     SentimentObservation,
     deduplicate_articles,
 )
+from aipro.intelligence.resilience import (
+    CircuitBreaker,
+    CircuitBreakerPolicy,
+    ExecutionEvidence,
+    ExecutionEvidenceStore,
+    ResilientExecutor,
+    RetryPolicy,
+    SlidingWindowRateLimiter,
+    TTLCache,
+)
 
 __all__ = [
+    "CircuitBreaker",
+    "CircuitBreakerPolicy",
+    "ExecutionEvidence",
+    "ExecutionEvidenceStore",
     "NewsArticle",
     "NewsBatch",
     "NewsPipeline",
     "NewsProvider",
+    "ResilientExecutor",
+    "RetryPolicy",
     "SentimentObservation",
+    "SlidingWindowRateLimiter",
+    "TTLCache",
     "deduplicate_articles",
 ]
