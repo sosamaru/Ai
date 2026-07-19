@@ -55,48 +55,69 @@ Overall completion: **100%**
 5. Missing or stale comparison and intelligence evidence fails closed.
 6. No claim of profitability or production readiness is made by reaching 100% V1 completion.
 
-## V1 known limitations
+## V2 status
 
-- Real least-privilege Upbit credentials have not completed supervised IP-restricted operation.
-- Sustained PAPER operation has not yet collected the required operational evidence window.
-- Backtests still use simplified slippage and do not model full order-book depth or all partial-fill cases.
-- Evidence export signing and retention/deletion policy remain unimplemented.
-- US-stock broker, FX, tax, calendar, and fractional-share behavior remain intentionally undecided.
+Current milestone: **authorization and PAPER-training foundation**
 
-## V2 operational and research backlog
+### Completed in current milestone
 
-These are future expansions, not unfinished V1 foundation work:
+- [x] Email OTP first-factor state machine
+- [x] Separate second-factor verification contract
+- [x] Salted OTP digest, expiry, failed-attempt lockout, and immediate revocation
+- [x] Temporary LIVE authorization lease with forced reauthentication after expiry
+- [x] Global stop/revocation path
+- [x] Alpaca PAPER minimum 30-day readiness policy
+- [x] Session, order-count, expectancy, drawdown, daily-loss, stale-data, duplicate-order, and reconciliation gates
+- [x] Deterministic PAPER evidence fingerprint
+- [x] Regression tests and design documentation
 
-### Supervised operation
+### Next implementation milestones
 
-- Run and record at least 24 supervised PAPER cycles.
-- Verify restart recovery, HALTED behavior, public-data freshness, provider health, unique order IDs, recent `MATCH` evidence, and runtime stability.
-- Perform a least-privilege read-only Upbit probe using an IP-restricted key.
+- [ ] SMTP or transactional-email OTP sender adapter with secret-safe configuration
+- [ ] TOTP verifier and enrollment/recovery procedure
+- [ ] Persist authorization state and append-only authorization audit evidence
+- [ ] Connect Telegram commands without allowing command-only bypass
+- [ ] Alpaca PAPER account, market-data, order, fill, and reconciliation adapters
+- [ ] Automatic 30-day PAPER evidence collector and daily report
+- [ ] Upbit authenticated test-order/preflight adapter before any real order endpoint
+- [ ] Upbit supervised live-data collector with order submission disabled
+- [ ] Expert-claim extraction, source reliability scoring, and outcome tracking
+- [ ] Chart, volatility, liquidity, macro, filing, and event feature expansion
+- [ ] Risk-adjusted EV ensemble, drift detection, and strategy-ablation evaluation
+- [ ] Independent live-readiness review before creating a minimal real-order adapter
 
-### Intelligence expansion
+## Mandatory future real-order gates
 
-- FRED macroeconomic regime inputs
-- SEC EDGAR filing-event normalization
-- Chart-pattern features
-- EV and volatility-based position sizing
-- Model training, evaluation, drift detection, and inference pipeline
+A future order adapter must require every gate below simultaneously:
 
-### US stocks
+1. Explicit LIVE environment guards.
+2. Active two-factor authorization lease.
+3. Recent PAPER validation PASS.
+4. At least 30 days of qualifying Alpaca PAPER evidence for the US-stock domain.
+5. Recent reconciliation `MATCH` evidence.
+6. Fresh market and intelligence data.
+7. Healthy required providers.
+8. Daily-loss, drawdown, exposure, liquidity, and position-size limits.
+9. Unique client order identifier and duplicate-order rejection.
+10. Order preflight/test validation when supported.
+11. Global kill switch not active.
 
-- Select a supported read-only data provider and broker later.
-- Add USD-isolated state, trading calendar, scanner, liquidity rules, backtest, PAPER validation, and independent readiness gates.
+An OTP, expert opinion, high confidence score, or recent profit may never bypass a failed safety gate.
 
-### Deployment
+## V2 investment-intelligence policy
 
-- Protected evidence backups and signing
-- Runtime monitoring and alerting
-- Secret rotation and operational runbooks
-- Controlled deployment after PAPER evidence review
+- Expert opinions are timestamped evidence, not direct commands.
+- Each claim must be mapped to symbols, events, horizon, and measurable outcomes.
+- Source weights must be learned from out-of-sample historical accuracy and must decay when performance deteriorates.
+- News, filings, macro, chart, volume, volatility, liquidity, regime, and portfolio risk must be combined.
+- The optimization target is risk-adjusted expected value and controlled drawdown, not maximum aggression.
+- Disagreement, stale data, regime uncertainty, and model drift reduce or block position size.
+- No profitability guarantee is permitted.
 
 ## Completion policy
 
-A V1 task is complete only when implementation, tests, documentation, limitations, and safety boundaries are recorded. V2 items may not be treated as permission to add authenticated order submission.
+A task is complete only when implementation, tests, documentation, limitations, and safety boundaries are recorded. Real-order code remains prohibited until the independent live-readiness review passes.
 
 ## Next action
 
-Execute the V2 supervised PAPER evidence run. Keep authenticated order submission absent until operational evidence and a separate live-readiness review pass.
+Implement the concrete email OTP sender, TOTP verifier, persisted authorization audit store, and Alpaca PAPER adapter while keeping real order submission absent.
