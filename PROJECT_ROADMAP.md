@@ -4,7 +4,7 @@ Updated: 2026-07-19
 
 ## Project goal
 
-Build a safe, maintainable multi-asset automated trading foundation while preserving:
+Build a safe, maintainable multi-asset automated-trading foundation while preserving:
 
 `run.py -> telegram.py -> main.py -> TradingApplication`
 
@@ -13,123 +13,90 @@ Asset domains remain isolated:
 - `aipro/core/` — asset-neutral contracts and safety boundaries
 - `aipro/crypto/` — crypto-specific configuration, adapters, and strategies
 - `aipro/us_stocks/` — US-stock-specific configuration, adapters, and strategies
-- `aipro/intelligence/` — broker-neutral news, sentiment, macro, filing, and feature inputs
+- `aipro/intelligence/` — broker-neutral intelligence inputs
 
-Development order is offline tests, backtesting, paper trading, live-readiness review, and explicitly approved live trading. Each asset domain must pass this sequence independently. Capital, broker state, risk limits, order IDs, approval state, credentials, and daily performance baselines must never be shared implicitly.
+Crypto and US-stock capital, broker state, risk limits, approval state, credentials, order IDs, and daily baselines must never be combined implicitly.
 
-## Portfolio baseline policy
+## V1 foundation status
 
-1. Crypto and US-stock portfolios maintain independent daily baselines.
-2. Crypto baseline = crypto cash + current crypto holdings market value.
-3. US-stock baseline = US-stock cash + current US-stock holdings market value.
-4. Combined totals are reporting-only and never replace either risk baseline.
-5. The US-stock broker remains undecided until the intelligence and safety foundation is complete.
-
-## Current status
-
-Overall completion: **98%**
+Overall completion: **100%**
 
 ### Completed
 
-- [x] Entry-point structure and crypto runtime ownership through `aipro/crypto/application.py`
+- [x] Preserve `run.py -> telegram.py -> main.py -> TradingApplication`
 - [x] PAPER default, double LIVE guard, persistent KST baseline, and HALTED latch
-- [x] Persistent PAPER cash, positions, immutable order IDs, and restart recovery
-- [x] Historical replay, strict CSV validation, dataset fingerprinting, and readiness reports
+- [x] Persistent PAPER cash, positions, average prices, immutable order IDs, and restart recovery
+- [x] Historical replay, strict dataset validation, fingerprints, and readiness reports
 - [x] Independent crypto and disabled-by-default US-stock namespaces
 - [x] Upbit public quotation adapter with freshness and provider-health gates
-- [x] Isolated GET-only authenticated Upbit inspection and immutable snapshots
-- [x] Fail-closed order lookup and duplicate-resubmission blocking
-- [x] Immutable `MATCH`, `MISMATCH`, and `STALE` comparison evidence
-- [x] Deterministic supervised PAPER validation and append-only evidence
-- [x] Recent `MATCH` comparison evidence required for validation PASS
-- [x] Restart-safe `/ai_upbit_go -> /confirm -> /go` approval state machine
-- [x] Provider-neutral normalized news article and sentiment contracts
-- [x] Multi-provider news collection and provider-health isolation
-- [x] Finnhub company-news and Alpha Vantage sentiment adapters
-- [x] Bounded retry, sliding-window rate limits, circuit breaker, and TTL cache
+- [x] Isolated GET-only authenticated Upbit inspection with immutable evidence
+- [x] Fail-closed duplicate lookup and resubmission blocking
+- [x] Immutable `MATCH`, `MISMATCH`, and `STALE` reconciliation evidence
+- [x] Deterministic supervised PAPER validation requiring recent `MATCH` evidence
+- [x] Restart-safe expiring `/ai_upbit_go -> /confirm -> /go` approval-intent flow
+- [x] Provider-neutral normalized news and sentiment contracts
+- [x] Finnhub news and Alpha Vantage sentiment adapters
+- [x] URL/headline deduplication, symbol relevance, and sentiment fusion
+- [x] Bounded retry, sliding-window rate limiting, circuit breaker, and TTL cache
 - [x] Append-only intelligence execution evidence with mutation blocking
+- [x] Alpha Vantage native ticker sentiment preservation
+- [x] Deterministic event classification
+- [x] Freshness-gated PAPER-only intelligence feature snapshots
+- [x] Deterministic SHA-256 feature fingerprints
 - [x] Regression tests and GitHub Actions workflow
+- [x] Safety and limitation documentation
 
-### In progress
+## V1 safety boundary
 
-- [ ] Confirm the intelligence-resilience feature branch in GitHub Actions
-- [ ] Perform a supervised least-privilege read-only account probe with a real IP-restricted key
-- [ ] Validate Upbit public market data during sustained supervised PAPER operation
-- [ ] Complete compatibility cleanup for legacy root-level crypto imports
+1. PAPER remains the source of truth.
+2. Approval completion records operator intent only and never enables LIVE trading.
+3. Authenticated order creation, cancellation, withdrawals, deposits, and account mutation remain absent.
+4. Intelligence snapshots are data-only and cannot alter balances, positions, risk state, baselines, or approvals.
+5. Missing or stale comparison and intelligence evidence fails closed.
+6. No claim of profitability or production readiness is made by reaching 100% V1 completion.
 
-### Not started
+## V1 known limitations
 
-#### Crypto
+- Real least-privilege Upbit credentials have not completed supervised IP-restricted operation.
+- Sustained PAPER operation has not yet collected the required operational evidence window.
+- Backtests still use simplified slippage and do not model full order-book depth or all partial-fill cases.
+- Evidence export signing and retention/deletion policy remain unimplemented.
+- US-stock broker, FX, tax, calendar, and fractional-share behavior remain intentionally undecided.
 
-- [ ] Authenticated order submission, kept absent until every readiness and supervised-operation gate passes
+## V2 operational and research backlog
 
-#### US stocks
+These are future expansions, not unfinished V1 foundation work:
 
-- [ ] Keep broker-neutral interfaces until the AI foundation is complete
-- [ ] Select read-only market data and a supported broker later
-- [ ] Momentum/gap scanner, liquidity filters, USD state, calendar, backtest, and readiness gate
+### Supervised operation
 
-#### Shared intelligence
+- Run and record at least 24 supervised PAPER cycles.
+- Verify restart recovery, HALTED behavior, public-data freshness, provider health, unique order IDs, recent `MATCH` evidence, and runtime stability.
+- Perform a least-privilege read-only Upbit probe using an IP-restricted key.
 
-- [ ] Native provider sentiment mapping and event classification
-- [ ] FRED macroeconomic regime inputs
-- [ ] SEC EDGAR filing analysis
-- [ ] Chart-pattern features
-- [ ] EV and volatility-based sizing
-- [ ] Model training and inference pipeline
-- [ ] Deployment and operational monitoring
+### Intelligence expansion
 
-## Current behavior
+- FRED macroeconomic regime inputs
+- SEC EDGAR filing-event normalization
+- Chart-pattern features
+- EV and volatility-based position sizing
+- Model training, evaluation, drift detection, and inference pipeline
 
-1. Execution remains `run.py -> telegram.py -> main.py -> TradingApplication`.
-2. PAPER remains the source of truth; authenticated inspection cannot alter strategy, balances, orders, or baselines.
-3. Exchange snapshots, comparisons, validation results, approval events, and intelligence execution evidence are persistent safety evidence.
-4. Supervised PAPER validation requires recent `MATCH` evidence.
-5. Completing the LIVE approval sequence records intent only; it never enables LIVE mode or submits orders.
-6. News providers are replaceable and return normalized deterministic records.
-7. Provider calls can be bounded by retry, local rate limits, circuit breakers, and cache TTL.
-8. Open circuits and exceeded local rate limits fail closed.
-9. Intelligence evidence stores no credentials or Authorization headers and cannot mutate trading state.
-10. Order creation, cancellation, withdrawal, deposit management, and mutation endpoints remain absent or blocked.
+### US stocks
 
-## Current gaps and risks
+- Select a supported read-only data provider and broker later.
+- Add USD-isolated state, trading calendar, scanner, liquidity rules, backtest, PAPER validation, and independent readiness gates.
 
-1. Real least-privilege Upbit credentials have not been exercised in supervised operation.
-2. Sustained PAPER operation has not yet proven timestamp tolerances and sparse-market behavior.
-3. Runtime validation observations are still supplied explicitly rather than collected automatically.
-4. Backtests use fixed slippage and do not model depth or partial fills.
-5. Approval completion is not an authorization to trade; authenticated order submission remains intentionally absent.
-6. Alpha Vantage native ticker sentiment values are not yet preserved in normalized observations.
-7. Provider freshness policy is represented by cache TTL but not yet connected to PAPER feature eligibility.
-8. Evidence export signing and retention/deletion policy are not implemented.
-9. US-stock broker, market data, FX, tax, calendar, and fractional-share behavior remain undecided.
+### Deployment
 
-## Immediate priority
-
-### P0 — Confirm CI
-
-- Require the full intelligence-resilience regression suite to pass.
-- Verify retry bounds, circuit transitions, rate-limit blocking, cache expiry, and immutable evidence.
-
-### P1 — Event and native sentiment intelligence
-
-- Preserve provider-native ticker sentiment and normalize event categories.
-- Add deterministic feature snapshots without connecting them to order submission.
-
-### P2 — Macro and filing intelligence
-
-- Add FRED macro-regime inputs and SEC EDGAR filing-event normalization.
-- Keep all intelligence features broker-neutral and PAPER-only.
-
-### P3 — Supervised crypto PAPER operation
-
-- Record at least 24 completed cycles, restart recovery, HALTED behavior, provider health, source freshness, unique order IDs, runtime stability, and recent `MATCH` evidence.
-- Persist immutable evidence to a protected local database.
+- Protected evidence backups and signing
+- Runtime monitoring and alerting
+- Secret rotation and operational runbooks
+- Controlled deployment after PAPER evidence review
 
 ## Completion policy
 
-A task is complete only when implementation, tests, documentation, limitations, roadmap status, and next priority are recorded.
+A V1 task is complete only when implementation, tests, documentation, limitations, and safety boundaries are recorded. V2 items may not be treated as permission to add authenticated order submission.
 
 ## Next action
 
-Confirm feature-branch CI, then add provider-native sentiment and event classification before producing deterministic PAPER-only intelligence feature snapshots.
+Execute the V2 supervised PAPER evidence run. Keep authenticated order submission absent until operational evidence and a separate live-readiness review pass.
