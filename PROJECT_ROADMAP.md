@@ -1,6 +1,6 @@
 # AiPro Project Roadmap
 
-Updated: 2026-07-18
+Updated: 2026-07-19
 
 ## Project goal
 
@@ -35,7 +35,7 @@ Each asset domain must pass this sequence independently. Capital, broker state, 
 
 ## Current status
 
-Overall completion: **84%**
+Overall completion: **86%**
 
 ### Completed
 
@@ -58,13 +58,16 @@ Overall completion: **84%**
 - [x] GET-only balance, single-order, and open-order inspection
 - [x] Network-level blocking of non-read-only private endpoints
 - [x] Authentication, permission, timeout, retry, duplicate-ID, and response-validation tests
-- [x] GitHub Actions regression tests for all completed components
+- [x] Guarded supervised read-only verification command with redacted JSON evidence
+- [x] Verification tests for explicit opt-in, fail-closed behavior, and secret/value redaction
+- [x] GitHub Actions regression tests for all previously completed components
 
 ### In progress
 
 - [ ] Complete remaining compatibility cleanup for legacy root-level crypto imports
 - [ ] Validate Upbit public market data during sustained supervised PAPER operation
-- [ ] Perform a supervised least-privilege read-only account probe with a real API key
+- [ ] Perform the new supervised least-privilege read-only account probe with a real API key
+- [ ] Confirm the feature-branch regression suite in GitHub Actions
 
 ### Not started
 
@@ -101,18 +104,19 @@ Overall completion: **84%**
 4. `AIPRO_MARKET_DATA_PROVIDER=DEMO` remains the safe offline default.
 5. Upbit public market data remains separate from authenticated account inspection.
 6. Authenticated account inspection is not wired into strategy decisions, PAPER balances, or order submission.
-7. Upbit credentials are loaded only when `UpbitCredentials.from_env()` is explicitly called.
+7. Upbit credentials are loaded only when explicitly requested.
 8. Credential values are excluded from dataclass representations and error messages.
 9. Private requests use HS512 JWT Bearer authentication with a new nonce for every attempt.
 10. Query-bearing requests include a SHA-512 hash of the exact query string.
-11. The private client permits only `/v1/accounts`, `/v1/order`, `/v1/orders/open`, and reserved `/v1/orders/closed` GET paths.
+11. The private client permits only approved GET account/order-inspection paths.
 12. Order creation, cancellation, deposit, withdrawal, and mutation endpoints are blocked before network access.
-13. Authentication and permission errors fail closed and are distinguished from retryable transport errors.
-14. PAPER state remains the source of truth for simulated trading.
+13. The supervised verification command additionally requires `AIPRO_UPBIT_READONLY_VERIFY=YES`.
+14. Verification output omits balances, average prices, order UUIDs, identifiers, credentials, and Authorization headers.
+15. PAPER state remains the source of truth for simulated trading.
 
 ## Current gaps and risks
 
-1. The authenticated client has passed deterministic tests but has not yet been exercised with a real least-privilege Upbit API key.
+1. The authenticated client and verification command have passed deterministic tests but have not yet been exercised with a real least-privilege Upbit API key.
 2. A real API key must be restricted by IP and limited to account/order-view permissions; order and withdrawal permissions must remain disabled.
 3. Read-only exchange snapshots are not yet persisted or compared with PAPER state.
 4. Timeout reconciliation and immutable exchange-order identity rules remain unimplemented.
@@ -125,12 +129,13 @@ Overall completion: **84%**
 
 ## Immediate priority
 
-### P0 — Supervised read-only account verification
+### P0 — Run supervised read-only account verification
 
 - Use an API key with only account and order-view permissions.
 - Keep order, withdrawal, and deposit-management permissions disabled.
-- Verify IP restriction, authentication errors, balance parsing, and open-order parsing.
-- Record only redacted diagnostics; never commit credentials or raw Authorization headers.
+- Restrict the key to the supervised machine's public IP.
+- Run `python -m aipro.crypto.verify_readonly` with the explicit verification guard.
+- Record only the redacted JSON report and operational result.
 
 ### P1 — Read-only account snapshot persistence
 
@@ -156,4 +161,4 @@ A task is complete only when implementation, tests, documentation, limitations, 
 
 ## Next action
 
-Complete final CI for the isolated Upbit read-only account boundary, merge it, then add a credential-safe supervised verification command that cannot submit or cancel orders.
+Confirm feature-branch CI, perform one least-privilege supervised read-only probe, then implement immutable read-only exchange snapshot persistence without connecting exchange values to PAPER balances or strategy decisions.
