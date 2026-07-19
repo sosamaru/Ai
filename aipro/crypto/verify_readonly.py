@@ -5,7 +5,7 @@ import json
 import os
 import sys
 from collections.abc import Mapping, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from typing import TextIO
 
@@ -16,9 +16,11 @@ from aipro.crypto.account import (
     UpbitCredentials,
     UpbitReadOnlyAccountClient,
 )
+from aipro.crypto.account_snapshot import ReadOnlyAccountSnapshotStore
 
 _VERIFY_ENV = "AIPRO_UPBIT_READONLY_VERIFY"
 _VERIFY_VALUE = "YES"
+_SNAPSHOT_DB_ENV = "AIPRO_UPBIT_SNAPSHOT_DB"
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,6 +34,9 @@ class ReadOnlyVerificationReport:
     open_order_states: tuple[str, ...]
     snapshot_fingerprint: str
     permissions_verified: tuple[str, ...]
+    snapshot_persisted: bool = False
+    snapshot_id: int | None = None
+    reconciliation_status: str = "UNCOMPARED"
     mutation_capability: str = "absent"
 
 
@@ -101,6 +106,7 @@ def run_verification(
     stdout: TextIO = sys.stdout,
     stderr: TextIO = sys.stderr,
     client_factory=UpbitReadOnlyAccountClient,
+    snapshot_store_factory=ReadOnlyAccountSnapshotStore,
 ) -> int:
     env = os.environ if environ is None else environ
     if env.get(_VERIFY_ENV, "").strip().upper() != _VERIFY_VALUE:
@@ -118,8 +124,23 @@ def run_verification(
         client = client_factory(credentials=credentials)
         balances = client.balances()
         orders = client.open_orders()
-        report = build_report(balances, orders)
-    except (ValueError, UpbitAccountError) as exc:
+        checked_at = datetime.now(UTC)
+        report = build_report(balances, orders, now=checked_at)
+        snapshot_db = env.get(_SNAPSHOT_DB_ENV, "").strip()
+        if snapshot_db:
+            stored = snapshot_store_factory(snapshot_db).append(
+                balances,
+                orders,
+                captured_at=checked_at,
+                reconciliation_status="UNCOMPARED",
+            )
+            report = replace(
+                report,
+                snapshot_persisted=True,
+                snapshot_id=stored.snapshot_id,
+                reconciliation_status=stored.reconciliation_status,
+            )
+    except (ValueError, OSError, UpbitAccountError) as exc:
         print(f"verification failed: {exc}", file=stderr)
         return 1
 
