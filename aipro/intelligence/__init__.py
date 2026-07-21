@@ -7,6 +7,13 @@ from aipro.intelligence.features import (
     build_paper_intelligence_snapshot,
     classify_event,
 )
+from aipro.intelligence.macro import (
+    FredClient,
+    MacroObservation,
+    MacroRegime,
+    MacroSnapshot,
+    build_macro_snapshot,
+)
 from aipro.intelligence.news import (
     NewsArticle,
     NewsBatch,
@@ -32,6 +39,10 @@ __all__ = [
     "EventCategory",
     "ExecutionEvidence",
     "ExecutionEvidenceStore",
+    "FredClient",
+    "MacroObservation",
+    "MacroRegime",
+    "MacroSnapshot",
     "NativeTickerSentiment",
     "NewsArticle",
     "NewsBatch",
@@ -43,6 +54,7 @@ __all__ = [
     "SentimentObservation",
     "SlidingWindowRateLimiter",
     "TTLCache",
+    "build_macro_snapshot",
     "build_paper_intelligence_snapshot",
     "classify_event",
     "deduplicate_articles",
