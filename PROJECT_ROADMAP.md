@@ -1,6 +1,6 @@
 # AiPro Project Roadmap
 
-Updated: 2026-07-19
+Updated: 2026-07-21
 
 ## Project goal
 
@@ -69,16 +69,38 @@ Development completion: **100% for the approved non-live integration scope**
 - [x] Deterministic regression tests for authorization, restart recovery, PAPER-domain enforcement, and test-order safety
 - [x] Secret-safe deployment and operation documentation
 
+## V3 intelligence expansion status
+
+Current milestone completion: **20%**
+
+### Completed
+
+- [x] Broker-neutral FRED observation contract and client
+- [x] CPI, effective federal funds rate, and unemployment normalization
+- [x] Missing/stale macro-data fail-closed eligibility gate
+- [x] Deterministic PAPER-only macro regime snapshot and SHA-256 fingerprint
+- [x] Offline regression tests and safety documentation
+
+### Remaining
+
+- [ ] SEC EDGAR filing-event normalization
+- [ ] Chart, volume, volatility, and liquidity feature extraction
+- [ ] Versioned combined PAPER feature vector
+- [ ] Walk-forward model training and out-of-sample evaluation
+- [ ] Drift detection, feature ablation, and model registry
+- [ ] Risk-adjusted EV and volatility-based position sizing
+- [ ] Independent crypto and US-stock PAPER strategy validation
+
 ## Development boundary
 
-The software development package is complete, but this does **not** mean real-money trading is approved.
+The software development package is complete for V1 and V2, but this does **not** mean real-money trading is approved.
 
 1. Real Upbit order creation remains absent.
 2. Alpaca integration accepts only `https://paper-api.alpaca.markets`.
 3. Upbit integration calls only `POST /v1/orders/test`, which validates but does not create an order.
 4. Email OTP and TOTP grant only a temporary authorization lease; they do not bypass risk or readiness gates.
 5. Authorization secrets, SMTP passwords, broker keys, TOTP secrets, and OTP plaintext must never be committed.
-6. An OTP, expert opinion, high confidence score, or recent profit may never bypass a failed safety gate.
+6. An OTP, expert opinion, confidence score, macro regime, or recent profit may never bypass a failed safety gate.
 
 ## Operational validation still required
 
@@ -99,7 +121,7 @@ A future minimal real-order adapter may be considered only after every gate belo
 1. Explicit LIVE environment guards.
 2. Active email OTP plus TOTP authorization lease.
 3. Recent PAPER validation PASS.
-4. At least 30 days of qualifying Alpaca PAPER evidence for the US-stock domain.
+4. At least 30 days of qualifying PAPER evidence for the relevant asset domain.
 5. Recent reconciliation `MATCH` evidence.
 6. Fresh market and intelligence data.
 7. Healthy required providers.
@@ -121,8 +143,8 @@ A future minimal real-order adapter may be considered only after every gate belo
 
 ## Completion policy
 
-A development task is complete only when implementation, tests, documentation, limitations, and safety boundaries are recorded. Operational evidence may not be marked complete until the real elapsed-time run occurs.
+A development task is complete only when implementation, tests, documentation, limitations, roadmap status, and next priority are recorded. Operational evidence may not be marked complete until the real elapsed-time run occurs.
 
 ## Next action
 
-Configure secrets outside Git, verify email OTP and TOTP locally, then begin the 30-day Alpaca PAPER evidence run and supervised Upbit test-order/data collection. Keep authenticated real order submission absent until a separate live-readiness review passes.
+Confirm the FRED macro-intelligence branch in GitHub Actions, then implement SEC EDGAR filing-event normalization while keeping all new intelligence PAPER-only and disconnected from real-order execution.
