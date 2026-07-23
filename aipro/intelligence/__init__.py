@@ -32,6 +32,15 @@ from aipro.intelligence.resilience import (
     SlidingWindowRateLimiter,
     TTLCache,
 )
+from aipro.intelligence.sec_edgar import (
+    FilingEventType,
+    FilingSnapshot,
+    SecEdgarClient,
+    SecFilingEvent,
+    build_filing_snapshot,
+    classify_filing,
+    normalize_recent_filings,
+)
 
 __all__ = [
     "CircuitBreaker",
@@ -39,6 +48,8 @@ __all__ = [
     "EventCategory",
     "ExecutionEvidence",
     "ExecutionEvidenceStore",
+    "FilingEventType",
+    "FilingSnapshot",
     "FredClient",
     "MacroObservation",
     "MacroRegime",
@@ -51,11 +62,16 @@ __all__ = [
     "PaperIntelligenceSnapshot",
     "ResilientExecutor",
     "RetryPolicy",
+    "SecEdgarClient",
+    "SecFilingEvent",
     "SentimentObservation",
     "SlidingWindowRateLimiter",
     "TTLCache",
+    "build_filing_snapshot",
     "build_macro_snapshot",
     "build_paper_intelligence_snapshot",
     "classify_event",
+    "classify_filing",
     "deduplicate_articles",
+    "normalize_recent_filings",
 ]
