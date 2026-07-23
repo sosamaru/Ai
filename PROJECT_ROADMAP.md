@@ -15,7 +15,7 @@ Asset domains remain isolated:
 - `aipro/us_stocks/` — US-stock-specific configuration, adapters, and strategies
 - `aipro/intelligence/` — broker-neutral intelligence inputs
 
-Crypto and US-stock capital, broker state, risk limits, approval state, credentials, order IDs, and daily baselines must never be combined implicitly.
+Crypto and US-stock capital, broker state, risk limits, approval state, credentials, order IDs, daily baselines, research datasets, and model records must never be combined implicitly.
 
 ## V1 foundation status
 
@@ -71,7 +71,7 @@ Development completion: **100% for the approved non-live integration scope**
 
 ## V3 intelligence expansion status
 
-Current milestone completion: **78%**
+Current milestone completion: **88%**
 
 ### Completed
 
@@ -92,12 +92,14 @@ Current milestone completion: **78%**
 - [x] Expanding-window walk-forward folds with configurable embargo gaps
 - [x] Deterministic ridge baseline and strictly held-out MAE, RMSE, and directional accuracy
 - [x] Duplicate-evidence, mixed-schema, insufficient-row, and temporal-order fail-closed gates
+- [x] Deterministic reference-versus-current feature-distribution drift detection
+- [x] Out-of-sample feature ablation through the existing walk-forward evaluator
+- [x] Fingerprinted PAPER model records with immutable IDs and explicit crypto/US-stock isolation
 - [x] Offline regression tests and safety documentation
 
 ### Remaining
 
 - [ ] Filing text/XBRL fact extraction, materiality scoring, and historical outcome evaluation
-- [ ] Drift detection, feature ablation, and model registry
 - [ ] Risk-adjusted EV and volatility-based position sizing
 - [ ] Independent crypto and US-stock PAPER strategy validation
 
@@ -110,11 +112,9 @@ The software development package is complete for V1 and V2, but this does **not*
 3. Upbit integration calls only `POST /v1/orders/test`, which validates but does not create an order.
 4. Email OTP and TOTP grant only a temporary authorization lease; they do not bypass risk or readiness gates.
 5. Authorization secrets, SMTP passwords, broker keys, TOTP secrets, and OTP plaintext must never be committed.
-6. An OTP, expert opinion, confidence score, walk-forward report, combined feature vector, filing event, macro regime, market feature, or recent profit may never bypass a failed safety gate.
+6. An OTP, model record, drift report, ablation result, walk-forward report, feature vector, filing event, macro regime, market feature, or recent profit may never bypass a failed safety gate.
 
 ## Operational validation still required
-
-These are real-world evidence runs, not unfinished coding tasks:
 
 - [ ] Configure a dedicated SMTP or transactional-email account and confirm delivery to the owner email.
 - [ ] Enroll the TOTP secret in an authenticator application and store recovery material offline.
@@ -126,25 +126,11 @@ These are real-world evidence runs, not unfinished coding tasks:
 
 ## Mandatory future real-order gates
 
-A future minimal real-order adapter may be considered only after every gate below passes simultaneously:
-
-1. Explicit LIVE environment guards.
-2. Active email OTP plus TOTP authorization lease.
-3. Recent PAPER validation PASS.
-4. At least 30 days of qualifying PAPER evidence for the relevant asset domain.
-5. Recent reconciliation `MATCH` evidence.
-6. Fresh market and intelligence data.
-7. Healthy required providers.
-8. Daily-loss, drawdown, exposure, liquidity, and position-size limits.
-9. Unique client order identifier and duplicate-order rejection.
-10. Successful order preflight/test validation when supported.
-11. Global kill switch not active.
-12. Independent live-readiness review approval.
+A future minimal real-order adapter may be considered only after explicit LIVE guards, active two-factor authorization, recent PAPER validation, at least 30 days of qualifying domain-specific PAPER evidence, reconciliation `MATCH`, fresh data, healthy providers, all portfolio risk limits, unique order IDs, successful preflight when supported, inactive kill switch, and an independent live-readiness review all pass simultaneously.
 
 ## Investment-intelligence policy
 
 - Expert opinions are timestamped evidence, not direct commands.
-- Each claim must be mapped to symbols, events, horizon, and measurable outcomes.
 - Source weights must be learned from out-of-sample historical accuracy and decay when performance deteriorates.
 - News, filings, macro, chart, volume, volatility, liquidity, regime, and portfolio risk must be combined.
 - The optimization target is risk-adjusted expected value and controlled drawdown, not maximum aggression.
@@ -157,4 +143,4 @@ A development task is complete only when implementation, tests, documentation, l
 
 ## Next action
 
-Confirm the walk-forward evaluation branch in GitHub Actions, then implement deterministic feature-distribution drift detection, out-of-sample feature ablation, and a fingerprinted PAPER model registry while keeping crypto and US-stock research artifacts independent.
+Confirm the model-governance branch in GitHub Actions, then implement risk-adjusted expected-value scoring and volatility-based PAPER position sizing without connecting the output to real-order execution.
