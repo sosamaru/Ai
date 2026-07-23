@@ -1,5 +1,12 @@
 """Asset-neutral intelligence components for AiPro."""
 
+from aipro.intelligence.combined_features import (
+    FEATURE_NAMES,
+    SCHEMA_VERSION,
+    CombinedFeaturePolicy,
+    CombinedPaperFeatureVector,
+    build_combined_paper_feature_vector,
+)
 from aipro.intelligence.features import (
     EventCategory,
     NativeTickerSentiment,
@@ -51,9 +58,12 @@ from aipro.intelligence.sec_edgar import (
 __all__ = [
     "CircuitBreaker",
     "CircuitBreakerPolicy",
+    "CombinedFeaturePolicy",
+    "CombinedPaperFeatureVector",
     "EventCategory",
     "ExecutionEvidence",
     "ExecutionEvidenceStore",
+    "FEATURE_NAMES",
     "FilingEventType",
     "FilingSnapshot",
     "FredClient",
@@ -71,11 +81,13 @@ __all__ = [
     "PaperIntelligenceSnapshot",
     "ResilientExecutor",
     "RetryPolicy",
+    "SCHEMA_VERSION",
     "SecEdgarClient",
     "SecFilingEvent",
     "SentimentObservation",
     "SlidingWindowRateLimiter",
     "TTLCache",
+    "build_combined_paper_feature_vector",
     "build_filing_snapshot",
     "build_macro_snapshot",
     "build_market_feature_snapshot",
