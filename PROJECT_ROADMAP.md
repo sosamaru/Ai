@@ -1,6 +1,6 @@
 # AiPro Project Roadmap
 
-Updated: 2026-07-21
+Updated: 2026-07-23
 
 ## Project goal
 
@@ -71,7 +71,7 @@ Development completion: **100% for the approved non-live integration scope**
 
 ## V3 intelligence expansion status
 
-Current milestone completion: **20%**
+Current milestone completion: **35%**
 
 ### Completed
 
@@ -79,11 +79,14 @@ Current milestone completion: **20%**
 - [x] CPI, effective federal funds rate, and unemployment normalization
 - [x] Missing/stale macro-data fail-closed eligibility gate
 - [x] Deterministic PAPER-only macro regime snapshot and SHA-256 fingerprint
+- [x] SEC EDGAR read-only submissions client with identifying User-Agent enforcement
+- [x] Filing-event normalization for reports, material events, ownership, offerings, insider transactions, and proxies
+- [x] Missing/stale filing fail-closed eligibility gate and deterministic fingerprints
 - [x] Offline regression tests and safety documentation
 
 ### Remaining
 
-- [ ] SEC EDGAR filing-event normalization
+- [ ] Filing text/XBRL fact extraction, materiality scoring, and historical outcome evaluation
 - [ ] Chart, volume, volatility, and liquidity feature extraction
 - [ ] Versioned combined PAPER feature vector
 - [ ] Walk-forward model training and out-of-sample evaluation
@@ -100,7 +103,7 @@ The software development package is complete for V1 and V2, but this does **not*
 3. Upbit integration calls only `POST /v1/orders/test`, which validates but does not create an order.
 4. Email OTP and TOTP grant only a temporary authorization lease; they do not bypass risk or readiness gates.
 5. Authorization secrets, SMTP passwords, broker keys, TOTP secrets, and OTP plaintext must never be committed.
-6. An OTP, expert opinion, confidence score, macro regime, or recent profit may never bypass a failed safety gate.
+6. An OTP, expert opinion, confidence score, filing event, macro regime, or recent profit may never bypass a failed safety gate.
 
 ## Operational validation still required
 
@@ -147,4 +150,4 @@ A development task is complete only when implementation, tests, documentation, l
 
 ## Next action
 
-Confirm the FRED macro-intelligence branch in GitHub Actions, then implement SEC EDGAR filing-event normalization while keeping all new intelligence PAPER-only and disconnected from real-order execution.
+Confirm the SEC EDGAR intelligence branch in GitHub Actions, then implement deterministic chart, volume, volatility, and liquidity features while keeping all new intelligence PAPER-only and disconnected from real-order execution.
