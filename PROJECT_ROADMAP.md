@@ -71,7 +71,7 @@ Development completion: **100% for the approved non-live integration scope**
 
 ## V3 intelligence expansion status
 
-Current milestone completion: **65%**
+Current milestone completion: **78%**
 
 ### Completed
 
@@ -88,12 +88,15 @@ Current milestone completion: **65%**
 - [x] Fixed-order `paper-feature-vector-v1` schema combining news, macro, filings, and market features
 - [x] Required-component, symbol-consistency, future-timestamp, and component-skew eligibility gates
 - [x] Source-fingerprint lineage and deterministic combined SHA-256 fingerprint
+- [x] Chronological labeled-row contract with schema, width, timestamp, and evidence validation
+- [x] Expanding-window walk-forward folds with configurable embargo gaps
+- [x] Deterministic ridge baseline and strictly held-out MAE, RMSE, and directional accuracy
+- [x] Duplicate-evidence, mixed-schema, insufficient-row, and temporal-order fail-closed gates
 - [x] Offline regression tests and safety documentation
 
 ### Remaining
 
 - [ ] Filing text/XBRL fact extraction, materiality scoring, and historical outcome evaluation
-- [ ] Walk-forward model training and strictly out-of-sample evaluation
 - [ ] Drift detection, feature ablation, and model registry
 - [ ] Risk-adjusted EV and volatility-based position sizing
 - [ ] Independent crypto and US-stock PAPER strategy validation
@@ -107,7 +110,7 @@ The software development package is complete for V1 and V2, but this does **not*
 3. Upbit integration calls only `POST /v1/orders/test`, which validates but does not create an order.
 4. Email OTP and TOTP grant only a temporary authorization lease; they do not bypass risk or readiness gates.
 5. Authorization secrets, SMTP passwords, broker keys, TOTP secrets, and OTP plaintext must never be committed.
-6. An OTP, expert opinion, confidence score, combined feature vector, filing event, macro regime, market feature, or recent profit may never bypass a failed safety gate.
+6. An OTP, expert opinion, confidence score, walk-forward report, combined feature vector, filing event, macro regime, market feature, or recent profit may never bypass a failed safety gate.
 
 ## Operational validation still required
 
@@ -154,4 +157,4 @@ A development task is complete only when implementation, tests, documentation, l
 
 ## Next action
 
-Confirm the combined feature-vector branch in GitHub Actions, then implement leak-resistant chronological datasets and walk-forward training with strictly out-of-sample evaluation while keeping crypto and US-stock research results independent.
+Confirm the walk-forward evaluation branch in GitHub Actions, then implement deterministic feature-distribution drift detection, out-of-sample feature ablation, and a fingerprinted PAPER model registry while keeping crypto and US-stock research artifacts independent.
