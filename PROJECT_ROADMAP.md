@@ -71,7 +71,7 @@ Development completion: **100% for the approved non-live integration scope**
 
 ## V3 intelligence expansion status
 
-Current milestone completion: **35%**
+Current milestone completion: **50%**
 
 ### Completed
 
@@ -82,12 +82,14 @@ Current milestone completion: **35%**
 - [x] SEC EDGAR read-only submissions client with identifying User-Agent enforcement
 - [x] Filing-event normalization for reports, material events, ownership, offerings, insider transactions, and proxies
 - [x] Missing/stale filing fail-closed eligibility gate and deterministic fingerprints
+- [x] Validated OHLCV market-bar contract with duplicate and malformed-bar rejection
+- [x] Deterministic return, volatility, ATR, volume, spread, liquidity, and trend features
+- [x] Missing, insufficient, stale, future, and excessive-zero-volume fail-closed gates
 - [x] Offline regression tests and safety documentation
 
 ### Remaining
 
 - [ ] Filing text/XBRL fact extraction, materiality scoring, and historical outcome evaluation
-- [ ] Chart, volume, volatility, and liquidity feature extraction
 - [ ] Versioned combined PAPER feature vector
 - [ ] Walk-forward model training and out-of-sample evaluation
 - [ ] Drift detection, feature ablation, and model registry
@@ -103,7 +105,7 @@ The software development package is complete for V1 and V2, but this does **not*
 3. Upbit integration calls only `POST /v1/orders/test`, which validates but does not create an order.
 4. Email OTP and TOTP grant only a temporary authorization lease; they do not bypass risk or readiness gates.
 5. Authorization secrets, SMTP passwords, broker keys, TOTP secrets, and OTP plaintext must never be committed.
-6. An OTP, expert opinion, confidence score, filing event, macro regime, or recent profit may never bypass a failed safety gate.
+6. An OTP, expert opinion, confidence score, filing event, macro regime, market feature, or recent profit may never bypass a failed safety gate.
 
 ## Operational validation still required
 
@@ -150,4 +152,4 @@ A development task is complete only when implementation, tests, documentation, l
 
 ## Next action
 
-Confirm the SEC EDGAR intelligence branch in GitHub Actions, then implement deterministic chart, volume, volatility, and liquidity features while keeping all new intelligence PAPER-only and disconnected from real-order execution.
+Confirm the market-feature branch in GitHub Actions, then build a versioned combined PAPER feature vector that joins news, sentiment, macro, filings, and market features without connecting it to real-order execution.

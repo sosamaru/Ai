@@ -14,6 +14,12 @@ from aipro.intelligence.macro import (
     MacroSnapshot,
     build_macro_snapshot,
 )
+from aipro.intelligence.market_features import (
+    MarketBar,
+    MarketFeaturePolicy,
+    MarketFeatureSnapshot,
+    build_market_feature_snapshot,
+)
 from aipro.intelligence.news import (
     NewsArticle,
     NewsBatch,
@@ -54,6 +60,9 @@ __all__ = [
     "MacroObservation",
     "MacroRegime",
     "MacroSnapshot",
+    "MarketBar",
+    "MarketFeaturePolicy",
+    "MarketFeatureSnapshot",
     "NativeTickerSentiment",
     "NewsArticle",
     "NewsBatch",
@@ -69,6 +78,7 @@ __all__ = [
     "TTLCache",
     "build_filing_snapshot",
     "build_macro_snapshot",
+    "build_market_feature_snapshot",
     "build_paper_intelligence_snapshot",
     "classify_event",
     "classify_filing",
