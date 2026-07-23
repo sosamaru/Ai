@@ -54,6 +54,13 @@ from aipro.intelligence.sec_edgar import (
     classify_filing,
     normalize_recent_filings,
 )
+from aipro.intelligence.walk_forward import (
+    LabeledFeatureRow,
+    WalkForwardFold,
+    WalkForwardPolicy,
+    WalkForwardReport,
+    build_walk_forward_report,
+)
 
 __all__ = [
     "CircuitBreaker",
@@ -67,6 +74,7 @@ __all__ = [
     "FilingEventType",
     "FilingSnapshot",
     "FredClient",
+    "LabeledFeatureRow",
     "MacroObservation",
     "MacroRegime",
     "MacroSnapshot",
@@ -87,11 +95,15 @@ __all__ = [
     "SentimentObservation",
     "SlidingWindowRateLimiter",
     "TTLCache",
+    "WalkForwardFold",
+    "WalkForwardPolicy",
+    "WalkForwardReport",
     "build_combined_paper_feature_vector",
     "build_filing_snapshot",
     "build_macro_snapshot",
     "build_market_feature_snapshot",
     "build_paper_intelligence_snapshot",
+    "build_walk_forward_report",
     "classify_event",
     "classify_filing",
     "deduplicate_articles",
