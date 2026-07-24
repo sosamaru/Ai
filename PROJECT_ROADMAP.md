@@ -15,7 +15,7 @@ Asset domains remain isolated:
 - `aipro/us_stocks/` — US-stock-specific configuration, adapters, and strategies
 - `aipro/intelligence/` — broker-neutral intelligence inputs
 
-Crypto and US-stock capital, broker state, risk limits, approval state, credentials, order IDs, daily baselines, research datasets, model records, candidate rankings, champion decisions, and champion histories must never be combined implicitly.
+Crypto and US-stock capital, broker state, risk limits, approval state, credentials, order IDs, daily baselines, research datasets, model records, candidate rankings, champion decisions, champion histories, and monitoring recommendations must never be combined implicitly.
 
 ## V1 foundation status
 
@@ -31,7 +31,7 @@ Completed: email OTP, RFC 6238 TOTP, temporary authorization leases, atomic pers
 
 ## V3 intelligence and model-governance status
 
-Current development completion: **97%**
+Current development completion: **98%**
 
 ### Completed
 
@@ -54,6 +54,8 @@ Current development completion: **97%**
 - [x] Append-only activation, replacement, rollback, and deactivation history
 - [x] Per-domain history isolation and deterministic event-chain fingerprints
 - [x] Database triggers blocking registry UPDATE and DELETE operations
+- [x] PAPER challenger health monitoring and deterministic governance recommendations
+- [x] Drift, calibration, expected-value, drawdown, and evidence-sufficiency gates
 - [x] Regression tests and safety documentation for the above development scope
 
 ### Remaining
@@ -64,13 +66,14 @@ Current development completion: **97%**
 
 ## Current implementation result
 
-The model-governance branch now separates candidate evaluation, champion selection, and champion registration into distinct fail-closed stages. The registry accepts only approved champion decisions and records every activation, replacement, rollback, and deactivation as an immutable PAPER event linked to the previous domain event.
+The model-governance branch now separates candidate evaluation, champion selection, champion registration, and ongoing challenger monitoring into distinct fail-closed stages. Registry events remain explicit and append-only; monitoring decisions never mutate registry state.
 
-Each event stores the model domain, candidate and decision fingerprints, previous event ID, mandatory reason, UTC timestamp, schema version, PAPER-only marker, and deterministic SHA-256 event ID. Crypto and US-stock histories remain separate.
+The challenger monitor compares domain-specific immutable health snapshots using drift, Brier calibration, cost-aware expected value, drawdown, aggregate score, and observation counts. It can recommend hold, replacement review, rollback review, deactivation, or abstention. Non-positive expected value and excessive drawdown take priority over challenger performance.
 
 ## Known limitations
 
-- The champion selector and registry consume completed evaluation evidence; they do not train, persist, or serve model binaries.
+- The selector, registry, and monitor consume completed evaluation evidence; they do not train, persist, or serve model binaries.
+- Monitoring recommendations do not automatically activate, replace, roll back, or deactivate registry entries.
 - Registry approval does not authorize inference, broker access, PAPER orders, or LIVE orders.
 - Optional deep-learning and boosting packages remain lazily loaded research dependencies.
 - GitHub Actions branch confirmation remains required.
@@ -96,4 +99,4 @@ A development task is complete only when implementation, tests, documentation, l
 
 ## Next priority
 
-Run branch CI and review the complete champion-governance and registry test suite. After CI passes, implement a PAPER-only challenger monitoring policy that can recommend replacement or rollback from fresh drift, calibration, expected-value, and drawdown evidence without directly changing registry state or connecting to real-order execution.
+Run branch CI and review the complete model-governance suite. After CI passes, implement immutable monitoring-decision persistence and operator acknowledgement evidence, still without automatic registry mutation or any connection to real-order execution.
