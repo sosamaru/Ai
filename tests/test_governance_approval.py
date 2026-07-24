@@ -39,7 +39,11 @@ def test_domain_histories_are_isolated(tmp_path):
     ledger = GovernanceApprovalLedger(tmp_path / "approval.sqlite3")
     ledger.record(_decision(), ReviewOutcome.REJECT, "crypto-reviewer", "not enough evidence")
     ledger.record(
-        _decision(ModelDomain.US_STOCK and Recommendation.REVIEW_ROLLBACK, ModelDomain.US_STOCK, "b" * 64),
+        _decision(
+            Recommendation.REVIEW_ROLLBACK,
+            ModelDomain.US_STOCK,
+            "b" * 64,
+        ),
         ReviewOutcome.DEFER,
         "stock-reviewer",
         "await more sessions",
