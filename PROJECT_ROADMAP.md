@@ -15,7 +15,7 @@ Asset domains remain isolated:
 - `aipro/us_stocks/` — US-stock-specific configuration, adapters, and strategies
 - `aipro/intelligence/` — broker-neutral intelligence inputs
 
-Crypto and US-stock capital, broker state, risk limits, approval state, credentials, order IDs, daily baselines, research datasets, model records, candidate rankings, champion decisions, champion histories, monitoring recommendations, and governance reviews must never be combined implicitly.
+Crypto and US-stock capital, broker state, risk limits, approval state, credentials, order IDs, daily baselines, research datasets, model records, candidate rankings, champion decisions, champion histories, monitoring recommendations, governance reviews, and command proposals must never be combined implicitly.
 
 ## V1 foundation status
 
@@ -59,6 +59,8 @@ Current development completion: **99%**
 - [x] Immutable PAPER operator-review approval ledger
 - [x] Reviewer identity, mandatory reason, duplicate-review prevention, and event-chain verification
 - [x] Explicit non-execution-authority markers and database mutation protection
+- [x] Explicit PAPER governance command proposals with evidence matching and deterministic fingerprints
+- [x] Exact confirmation phrase requirement without automatic registry mutation
 - [x] Regression tests and safety documentation for the above development scope
 
 ### Remaining
@@ -69,15 +71,15 @@ Current development completion: **99%**
 
 ## Current implementation result
 
-The model-governance branch now separates candidate evaluation, champion selection, champion registration, ongoing challenger monitoring, and operator review into distinct fail-closed stages. Registry events remain explicit and append-only; monitoring decisions never mutate registry state; approval records cannot create execution authority.
+The model-governance branch now separates candidate evaluation, champion selection, champion registration, ongoing challenger monitoring, operator review, command proposal construction, and explicit command confirmation into distinct fail-closed stages. Registry events remain explicit and append-only; monitoring decisions never mutate registry state; approval records and confirmed command proposals cannot create execution authority.
 
-The approval ledger records approve, reject, or defer outcomes against deterministic monitoring fingerprints. It requires reviewer identity and a reason, prevents the same reviewer from overwriting a prior outcome, preserves independent crypto and US-stock chains, and blocks database UPDATE and DELETE operations.
+The command boundary rejects non-approved, cross-domain, fingerprint-mismatched, recommendation-mismatched, HOLD, and ABSTAIN evidence. Replacement requires a named challenger, rollback requires an explicit registry event target, and confirmation requires the exact `APPLY PAPER GOVERNANCE` phrase. Confirmation still performs no registry mutation.
 
 ## Known limitations
 
-- The selector, registry, monitor, and approval ledger consume completed evaluation evidence; they do not train, persist, or serve model binaries.
-- Monitoring recommendations and approval events do not automatically activate, replace, roll back, or deactivate registry entries.
-- Approval evidence does not authorize inference, broker access, PAPER orders, or LIVE orders.
+- The selector, registry, monitor, approval ledger, and command boundary consume completed evaluation evidence; they do not train, persist, or serve model binaries.
+- Confirmed command proposals do not automatically activate, replace, roll back, or deactivate registry entries.
+- Approval and command evidence do not authorize inference, broker access, PAPER orders, or LIVE orders.
 - Optional deep-learning and boosting packages remain lazily loaded research dependencies.
 - GitHub Actions branch confirmation remains required.
 - No profitability guarantee is permitted.
@@ -102,4 +104,4 @@ A development task is complete only when implementation, tests, documentation, l
 
 ## Next priority
 
-Run branch CI and review the complete model-governance suite. After CI passes, implement a registry-application command boundary that validates an approved governance event but still requires a separate explicit PAPER command and never creates LIVE or broker authority.
+Run branch CI and review the complete model-governance suite. After CI passes, implement the first concrete deterministic time-series training runner on purged/embargoed folds while keeping optional dependencies lazy, artifacts PAPER-only, and crypto/US-stock training evidence isolated.
