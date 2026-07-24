@@ -15,7 +15,7 @@ Asset domains remain isolated:
 - `aipro/us_stocks/` — US-stock-specific configuration, adapters, and strategies
 - `aipro/intelligence/` — broker-neutral intelligence inputs
 
-Crypto and US-stock capital, broker state, risk limits, approval state, credentials, order IDs, daily baselines, research datasets, model records, candidate rankings, and champion decisions must never be combined implicitly.
+Crypto and US-stock capital, broker state, risk limits, approval state, credentials, order IDs, daily baselines, research datasets, model records, candidate rankings, champion decisions, and champion histories must never be combined implicitly.
 
 ## V1 foundation status
 
@@ -31,7 +31,7 @@ Completed: email OTP, RFC 6238 TOTP, temporary authorization leases, atomic pers
 
 ## V3 intelligence and model-governance status
 
-Current development completion: **96%**
+Current development completion: **97%**
 
 ### Completed
 
@@ -50,24 +50,30 @@ Current development completion: **96%**
 - [x] Optional isolated gradient-boosting backend specifications
 - [x] Optional isolated LSTM, GRU, and Transformer-encoder backend specifications
 - [x] Fail-closed PAPER champion selection with score and expected-value margin gates
+- [x] Immutable SQLite PAPER champion registry
+- [x] Append-only activation, replacement, rollback, and deactivation history
+- [x] Per-domain history isolation and deterministic event-chain fingerprints
+- [x] Database triggers blocking registry UPDATE and DELETE operations
 - [x] Regression tests and safety documentation for the above development scope
 
 ### Remaining
 
 - [ ] Filing text/XBRL fact extraction, materiality scoring, and historical outcome evaluation
 - [ ] Concrete time-series training runners for optional model backends with purged/embargoed validation
-- [ ] Immutable champion registry and challenger replacement history
 - [ ] Independent crypto and US-stock PAPER strategy evidence collection
 
 ## Current implementation result
 
-The champion-governance branch adds a separate selection layer after candidate evaluation. It rejects domain mixing, duplicate names, rejected candidates, weak calibration, non-positive expected value, and indecisive leader margins. Decisions are PAPER-only and receive deterministic SHA-256 fingerprints.
+The model-governance branch now separates candidate evaluation, champion selection, and champion registration into distinct fail-closed stages. The registry accepts only approved champion decisions and records every activation, replacement, rollback, and deactivation as an immutable PAPER event linked to the previous domain event.
+
+Each event stores the model domain, candidate and decision fingerprints, previous event ID, mandatory reason, UTC timestamp, schema version, PAPER-only marker, and deterministic SHA-256 event ID. Crypto and US-stock histories remain separate.
 
 ## Known limitations
 
-- The champion selector consumes completed evaluation evidence; it does not train or persist a model.
+- The champion selector and registry consume completed evaluation evidence; they do not train, persist, or serve model binaries.
+- Registry approval does not authorize inference, broker access, PAPER orders, or LIVE orders.
 - Optional deep-learning and boosting packages remain lazily loaded research dependencies.
-- GitHub Actions did not report a workflow run for the latest main commit at inspection time, so branch CI confirmation remains required.
+- GitHub Actions branch confirmation remains required.
 - No profitability guarantee is permitted.
 - Real Upbit order creation remains absent, and Alpaca remains PAPER-domain only.
 
@@ -90,4 +96,4 @@ A development task is complete only when implementation, tests, documentation, l
 
 ## Next priority
 
-Run branch CI and review the champion-governance tests. After CI passes, implement an immutable PAPER champion registry that records activation, replacement, rollback reason, source evaluation fingerprints, domain, and schema version without connecting any output to real-order execution.
+Run branch CI and review the complete champion-governance and registry test suite. After CI passes, implement a PAPER-only challenger monitoring policy that can recommend replacement or rollback from fresh drift, calibration, expected-value, and drawdown evidence without directly changing registry state or connecting to real-order execution.
