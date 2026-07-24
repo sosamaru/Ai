@@ -1,6 +1,6 @@
 # AiPro Project Roadmap
 
-Updated: 2026-07-23
+Updated: 2026-07-24
 
 ## Project goal
 
@@ -71,7 +71,7 @@ Development completion: **100% for the approved non-live integration scope**
 
 ## V3 intelligence expansion status
 
-Current milestone completion: **88%**
+Current milestone completion: **96%**
 
 ### Completed
 
@@ -95,13 +95,18 @@ Current milestone completion: **88%**
 - [x] Deterministic reference-versus-current feature-distribution drift detection
 - [x] Out-of-sample feature ablation through the existing walk-forward evaluator
 - [x] Fingerprinted PAPER model records with immutable IDs and explicit crypto/US-stock isolation
+- [x] Risk-adjusted expected value and volatility-based PAPER position sizing
+- [x] Deterministic PAPER execution-cost and partial-fill simulation
+- [x] Independent crypto and US-stock regime/strategy pipelines
+- [x] Classical ML candidate evaluation framework
+- [x] Optional isolated gradient-boosting and sequence-model backend registries
+- [x] End-to-end domain-isolated PAPER strategy validation with execution-cost edge checks
 - [x] Offline regression tests and safety documentation
 
 ### Remaining
 
 - [ ] Filing text/XBRL fact extraction, materiality scoring, and historical outcome evaluation
-- [ ] Risk-adjusted EV and volatility-based position sizing
-- [ ] Independent crypto and US-stock PAPER strategy validation
+- [ ] Run and retain domain-specific PAPER validation evidence over real elapsed time
 
 ## Development boundary
 
@@ -112,7 +117,7 @@ The software development package is complete for V1 and V2, but this does **not*
 3. Upbit integration calls only `POST /v1/orders/test`, which validates but does not create an order.
 4. Email OTP and TOTP grant only a temporary authorization lease; they do not bypass risk or readiness gates.
 5. Authorization secrets, SMTP passwords, broker keys, TOTP secrets, and OTP plaintext must never be committed.
-6. An OTP, model record, drift report, ablation result, walk-forward report, feature vector, filing event, macro regime, market feature, or recent profit may never bypass a failed safety gate.
+6. An OTP, model record, drift report, ablation result, walk-forward report, feature vector, filing event, macro regime, market feature, strategy validation, or recent profit may never bypass a failed safety gate.
 
 ## Operational validation still required
 
@@ -134,7 +139,7 @@ A future minimal real-order adapter may be considered only after explicit LIVE g
 - Source weights must be learned from out-of-sample historical accuracy and decay when performance deteriorates.
 - News, filings, macro, chart, volume, volatility, liquidity, regime, and portfolio risk must be combined.
 - The optimization target is risk-adjusted expected value and controlled drawdown, not maximum aggression.
-- Disagreement, stale data, regime uncertainty, and model drift reduce or block position size.
+- Disagreement, stale data, regime uncertainty, model drift, execution cost, and limited liquidity reduce or block position size.
 - No profitability guarantee is permitted.
 
 ## Completion policy
@@ -143,4 +148,4 @@ A development task is complete only when implementation, tests, documentation, l
 
 ## Next action
 
-Confirm the model-governance branch in GitHub Actions, then implement risk-adjusted expected-value scoring and volatility-based PAPER position sizing without connecting the output to real-order execution.
+Run GitHub Actions for the PAPER strategy-validation branch, fix any regression, then implement filing text/XBRL fact extraction and materiality scoring without connecting research output to real-order execution.
