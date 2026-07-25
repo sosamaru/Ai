@@ -1,6 +1,6 @@
 # AiPro Project Roadmap
 
-Updated: 2026-07-25
+Updated: 2026-07-24
 
 ## Project goal
 
@@ -16,7 +16,7 @@ Asset domains remain isolated:
 - `aipro/intelligence/` — broker-neutral intelligence inputs
 - `aipro/research/` — leakage-safe PAPER research and validation
 
-Crypto and US-stock capital, broker state, risk limits, approval state, credentials, order IDs, daily baselines, datasets, folds, model records, candidate rankings, champion decisions, champion histories, monitoring recommendations, governance reviews, and command proposals must never be combined implicitly.
+Crypto and US-stock capital, broker state, risk limits, approval state, credentials, order IDs, daily baselines, datasets, folds, model records, candidate rankings, and governance evidence must never be combined implicitly.
 
 ## V1 foundation status
 
@@ -32,9 +32,9 @@ Completed: email OTP, RFC 6238 TOTP, temporary authorization leases, atomic pers
 
 ## V3 intelligence, validation, and model-governance status
 
-Current construction completion: **99% pending final companion-branch integration**
+Current construction completion: **99% across active companion branches, pending final CI and integration**
 
-### Completed
+### Completed on main or active reviewed branches
 
 - [x] FRED macro observations, SEC EDGAR filing events, OHLCV validation, and deterministic fingerprints
 - [x] Fixed-order combined feature vectors with lineage and freshness gates
@@ -51,23 +51,12 @@ Current construction completion: **99% pending final companion-branch integratio
 - [x] Balanced accuracy, Brier calibration, cost-aware expected value, turnover, and sample evidence
 - [x] Deterministic fold, model, candidate-evaluation, and report SHA-256 fingerprints
 - [x] Strict crypto/US-stock research isolation
-- [x] Fail-closed PAPER champion selection with score and expected-value margin gates
-- [x] Immutable SQLite PAPER champion registry
-- [x] Append-only activation, replacement, rollback, and deactivation history
-- [x] Per-domain history isolation and deterministic event-chain fingerprints
-- [x] Database triggers blocking registry UPDATE and DELETE operations
-- [x] PAPER challenger health monitoring and deterministic governance recommendations
-- [x] Drift, calibration, expected-value, drawdown, and evidence-sufficiency gates
-- [x] Immutable PAPER operator-review approval ledger
-- [x] Reviewer identity, mandatory reason, duplicate-review prevention, and event-chain verification
-- [x] Explicit non-execution-authority markers and database mutation protection
-- [x] Explicit PAPER governance command proposals with evidence matching and deterministic fingerprints
-- [x] Exact confirmation phrase requirement without automatic registry mutation
+- [x] Companion model champion selection, immutable registry, challenger monitoring, operator approval, and explicit PAPER command boundary
 - [x] Regression tests and safety documentation for the above construction scope
 
 ### Remaining construction
 
-- [ ] Merge and CI-confirm the model-governance and end-to-end PAPER strategy-validation branches on current main
+- [ ] Merge and CI-confirm the purged validation/training branch and model-governance branch together
 - [ ] Add bounded training adapters for optional boosting and sequence backends using the same purged fold contract
 - [ ] Filing text/XBRL fact extraction, materiality scoring, and historical outcome evaluation
 - [ ] Produce a completion manifest comparing code, tests, documentation, and roadmap claims
@@ -83,21 +72,16 @@ Current construction completion: **99% pending final companion-branch integratio
 
 ## Current implementation result
 
-The purged training path provides validated time-ordered rows, leakage-controlled folds, bounded fitting, untouched test scoring, and candidate-evaluation evidence. Scaling statistics are calculated from each training fold only. Overlapping label windows are removed before fitting, and post-test embargo indices are recorded.
+The purged training branch now provides a concrete end-to-end research path from validated time-ordered rows to leakage-controlled folds, bounded model fitting, untouched test scoring, and the existing candidate-evaluation gate. Scaling statistics are calculated from each training fold only. Overlapping label windows are removed before fitting, and post-test embargo indices are recorded.
 
-The model-governance path separates candidate evaluation, champion selection, champion registration, challenger monitoring, operator review, command proposal construction, and explicit command confirmation into distinct fail-closed stages. Registry events remain append-only; monitoring decisions never mutate registry state; approvals and confirmed command proposals cannot create execution authority.
-
-The command boundary rejects non-approved, cross-domain, fingerprint-mismatched, recommendation-mismatched, HOLD, and ABSTAIN evidence. Replacement requires a named challenger, rollback requires an explicit registry event target, and confirmation requires the exact `APPLY PAPER GOVERNANCE` phrase. Confirmation still performs no registry mutation.
-
-All outputs remain PAPER research evidence. They do not persist or serve live model binaries, contact brokers, submit real orders, enable LIVE mode, or bypass any risk or authorization control.
+The output remains PAPER research evidence. It does not persist or serve model binaries, mutate champion state, contact brokers, submit orders, enable LIVE mode, or bypass any risk or authorization control.
 
 ## Known limitations
 
 - The first concrete runner supports a deterministic binary logistic baseline only.
 - Optional boosting and deep-learning packages remain lazily loaded and do not yet have concrete purged training adapters.
-- Champion governance consumes completed evaluation evidence; it does not itself train or serve models.
-- Confirmed command proposals do not automatically mutate the registry.
-- GitHub Actions must confirm the final integrated main commit.
+- GitHub Actions must confirm the latest branch commit before this construction item is marked integrated.
+- Companion PRs must be rebased or merged carefully because they started from the same earlier `main` commit.
 - No profitability guarantee is permitted.
 - Real Upbit order creation remains absent, and Alpaca remains PAPER-domain only.
 
@@ -111,4 +95,4 @@ A development task is complete only when implementation, tests, documentation, l
 
 ## Next priority
 
-Integrate and CI-confirm the model-governance branch, then integrate the end-to-end domain-isolated PAPER strategy-validation runner. After both pass on current main, implement a bounded optional gradient-boosting training adapter that consumes the same purged fold evidence without changing `run.py -> telegram.py -> main.py -> TradingApplication`.
+Run full branch CI. If it passes, integrate the purged training branch with the model-governance branch, then implement a bounded optional gradient-boosting training adapter that consumes the same purged fold evidence without changing `run.py -> telegram.py -> main.py -> TradingApplication`.
