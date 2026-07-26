@@ -32,9 +32,9 @@ Completed: email OTP, RFC 6238 TOTP, temporary authorization leases, atomic pers
 
 ## V3 intelligence, validation, and model-governance status
 
-Current construction completion: **99%**
+Current construction completion: **99.5%**
 
-### Completed and integrated on main
+### Completed on main or the current reviewed branch
 
 - [x] FRED macro observations, SEC EDGAR filing events, OHLCV validation, and deterministic fingerprints
 - [x] Fixed-order combined feature vectors with lineage and freshness gates
@@ -62,12 +62,15 @@ Current construction completion: **99%**
 - [x] PAPER governance command proposals with exact confirmation phrase and no automatic registry mutation
 - [x] End-to-end domain-isolated PAPER strategy validation combining regime selection, EV sizing, and execution simulation
 - [x] Fail-closed rejection of abstention, provider outage, invalid lineage, partial fills, and execution-cost-eroded edge
+- [x] Bounded SEC filing HTML extraction with executable-content exclusion and deterministic evidence
+- [x] SEC Company Facts extraction with accession/form matching and prior-period comparisons
+- [x] Deterministic filing materiality scoring from forms, items, reviewed phrases, and XBRL changes
+- [x] Historical filing outcome evaluation with optional timestamp-aligned benchmark abnormal returns
 - [x] Regression tests and safety documentation for the integrated construction scope
 
 ### Remaining construction
 
-- [ ] Confirm the latest integrated `main` commit in GitHub Actions
-- [ ] Filing text/XBRL fact extraction, materiality scoring, and historical outcome evaluation
+- [ ] Confirm the latest integrated `main` commit and the current SEC-analysis branch in GitHub Actions
 - [ ] Produce a completion manifest comparing code, tests, documentation, and roadmap claims
 
 ### Operational evidence still required
@@ -87,14 +90,19 @@ The optional boosting runner constructs a fresh explicitly requested estimator f
 
 The optional sequence runner constructs a fresh LSTM, GRU, or Transformer encoder for every fold. PyTorch and TensorFlow remain lazy optional dependencies. A sequence window must be contiguous and wholly contained in its train or test partition, scaling statistics come only from training sequences, and model training remains bounded by the reviewed architecture and per-fold materialization limits.
 
-All outputs remain PAPER research or governance evidence. They do not contact brokers, submit real orders, enable LIVE mode, automatically mutate champion state, or bypass risk, authorization, reconciliation, HALTED, or kill-switch controls.
+The SEC analysis path now accepts an existing normalized filing event, bounded public filing HTML, Company Facts evidence for the same CIK, and optional externally supplied price observations. It extracts visible text, accession-matched XBRL facts, deterministic prior-period comparisons, materiality reasons, and historical raw or benchmark-adjusted outcomes without contacting a broker or creating a strategy instruction.
+
+All outputs remain PAPER research or governance evidence. They do not submit real orders, enable LIVE mode, automatically mutate champion state, or bypass risk, authorization, reconciliation, HALTED, or kill-switch controls.
 
 ## Known limitations
 
 - Optional PyTorch and TensorFlow packages are not installed in core CI; dependency-free tests validate orchestration through deterministic fake trainers, while real backend execution requires an explicitly provisioned research environment.
 - Boosting and sequence model binaries are not persisted or served; only deterministic PAPER evaluation evidence is produced.
+- Filing materiality is a reviewed deterministic heuristic, not a recommendation or profitability forecast.
+- Company Facts comparisons depend on SEC taxonomy consistency and do not yet perform semantic concept aliasing across issuer-specific extensions.
+- Historical outcomes require externally supplied, timestamp-aligned price data and do not contact a market-data provider.
 - Confirmed governance commands do not automatically mutate the champion registry.
-- PR #60 passed the complete dependency-free test workflow before merge; the merged `main` push workflow still requires separate confirmation.
+- The current SEC-analysis branch must pass GitHub Actions before merge; the merged `main` push workflow still requires separate confirmation.
 - No profitability guarantee is permitted.
 - Real Upbit order creation remains absent, and Alpaca remains PAPER-domain only.
 
@@ -108,4 +116,4 @@ A development task is complete only when implementation, tests, documentation, l
 
 ## Next priority
 
-Confirm the merged `main` commit in GitHub Actions. Then implement filing text/XBRL fact extraction with materiality scoring and historical outcome evaluation while keeping artifacts PAPER-only, domains isolated, and `run.py -> telegram.py -> main.py -> TradingApplication` unchanged.
+Run the complete GitHub Actions workflow on the SEC-analysis branch. After it passes, merge the branch and produce a completion manifest that compares repository code, regression tests, safety documentation, roadmap claims, known limitations, and remaining operational evidence while preserving `run.py -> telegram.py -> main.py -> TradingApplication`.
