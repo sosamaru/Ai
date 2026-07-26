@@ -12,7 +12,19 @@ from enum import StrEnum
 from hashlib import sha256
 import json
 from pathlib import Path
-from typing import Iterable, Mapping, Sequence
+from typing import Mapping, Sequence
+
+
+def _validate_relative_path(value: str) -> None:
+    path = Path(value)
+    if not value.strip() or path.is_absolute() or ".." in path.parts:
+        raise ValueError(f"unsafe repository path: {value!r}")
+
+
+def _fingerprint(payload: Mapping[str, object]) -> str:
+    return sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+    ).hexdigest()
 
 
 class ClaimStatus(StrEnum):
@@ -371,24 +383,12 @@ def _file_evidence(root: Path, relative_path: str) -> FileEvidence:
     )
 
 
-def _validate_relative_path(value: str) -> None:
-    path = Path(value)
-    if not value.strip() or path.is_absolute() or ".." in path.parts:
-        raise ValueError(f"unsafe repository path: {value!r}")
-
-
 def _hash_file(path: Path) -> str:
     digest = sha256()
     with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(65_536), b""):
             digest.update(chunk)
     return digest.hexdigest()
-
-
-def _fingerprint(payload: Mapping[str, object]) -> str:
-    return sha256(
-        json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
-    ).hexdigest()
 
 
 __all__ = [
