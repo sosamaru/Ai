@@ -76,7 +76,7 @@ Current construction completion: **100% integrated on main for the approved PAPE
 
 No remaining code-only construction item is recorded for the approved PAPER/non-live scope. New development must begin from a separately reviewed requirement and must not be presented as operational or LIVE readiness.
 
-A separately reviewed operational-support requirement now adds a supervised SMTP verification runner. It generates a short-lived OTP, invokes the existing SMTP adapter, records append-only redacted evidence, rejects implicit execution, and never grants trading authority.
+Separately reviewed operational-support requirements now include supervised SMTP and TOTP verification runners. SMTP delivery records redacted provider evidence. TOTP verification validates a current authenticator code, claims each enrollment/time counter once, rejects replay, and persists no secret or code plaintext. Neither workflow grants trading authority.
 
 ### Operational evidence still required
 
@@ -88,6 +88,8 @@ A separately reviewed operational-support requirement now adds a supervised SMTP
 - [ ] Produce a separate live-readiness decision from immutable evidence
 
 The SMTP verification implementation is not operational completion. The checkbox remains open until owner-controlled credentials are used, the provider accepts delivery, and mailbox arrival is manually confirmed.
+
+The TOTP verification implementation is not operational completion. The checkbox remains open until the owner enrolls the actual secret in an authenticator, successfully verifies a current code, and confirms that recovery material is stored offline.
 
 ## Current implementation result
 
@@ -103,6 +105,8 @@ The Completion Manifest evaluates reviewed development claims against real repos
 
 The SMTP operational runner requires the exact `AIPRO_SMTP_VERIFY=YES` opt-in, hashes the recipient before persistence, omits OTP plaintext and exception messages, records success or failure in an append-only SQLite store, and returns a failing process status when delivery is not accepted.
 
+The TOTP operational runner requires the exact `AIPRO_TOTP_VERIFY=YES` opt-in, receives the current code through a hidden prompt, stores only an enrollment-label hash and time counter, rejects accepted-counter reuse, and records append-only accepted or rejected evidence without persisting the TOTP secret or code.
+
 All outputs remain PAPER research, governance, operational-support, or repository-integrity evidence. They do not submit real orders, enable LIVE mode, automatically mutate champion state, or bypass risk, authorization, reconciliation, HALTED, or kill-switch controls.
 
 ## Known limitations
@@ -115,6 +119,7 @@ All outputs remain PAPER research, governance, operational-support, or repositor
 - Confirmed governance commands do not automatically mutate the champion registry.
 - Completion Manifest success proves repository traceability for the approved construction scope only; it does not prove operational readiness, live safety, or profitability.
 - SMTP server acceptance does not prove mailbox arrival; supervised manual confirmation is still required.
+- A valid TOTP code does not prove that recovery material is safely stored or that the operator device remains secure.
 - PR #62 passed the complete dependency-free test workflow before merge. The merged `main` push workflow has not been separately confirmed through the available connector.
 - No profitability guarantee is permitted.
 - Real Upbit order creation remains absent, and Alpaca remains PAPER-domain only.
@@ -129,4 +134,4 @@ A development task is complete only when implementation, tests, documentation, l
 
 ## Next priority
 
-Run CI for the supervised SMTP verification implementation. After merge, the owner must configure dedicated SMTP credentials and execute the documented verification while manually confirming mailbox arrival. The next constructible support item is a similarly redacted TOTP enrollment verification workflow; the 30-calendar-day Alpaca PAPER requirement remains elapsed-time evidence and cannot be accelerated by code.
+Run CI for the supervised TOTP operational-verification implementation. After merge, the owner must execute the documented SMTP and TOTP procedures with actual owner-controlled credentials, confirm mailbox arrival, and verify offline recovery storage. The next development work is operational evidence tooling for the 30-calendar-day Alpaca PAPER observation period; the elapsed-time requirement itself cannot be accelerated or marked complete by code.
