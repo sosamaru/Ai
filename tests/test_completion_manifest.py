@@ -16,11 +16,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_default_manifest_matches_repository_code_tests_docs_and_roadmap():
     manifest = build_completion_manifest(ROOT)
-    assert manifest.development_complete
+    rendered = render_manifest_markdown(manifest)
+    assert manifest.development_complete, rendered
     assert not manifest.operational_complete
     assert manifest.paper_only
     assert not manifest.grants_execution_authority
-    assert all(claim.status is ClaimStatus.COMPLETE for claim in manifest.claims)
+    assert all(claim.status is ClaimStatus.COMPLETE for claim in manifest.claims), rendered
     assert all(
         requirement.status is OperationalStatus.EXTERNAL_EVIDENCE_REQUIRED
         for requirement in manifest.operational_requirements
@@ -34,7 +35,7 @@ def test_manifest_and_markdown_are_deterministic():
     assert first.fingerprint == second.fingerprint
     assert render_manifest_markdown(first) == render_manifest_markdown(second)
     rendered = render_manifest_markdown(first)
-    assert "Development complete: **true**" in rendered
+    assert "Development complete: **true**" in rendered, rendered
     assert "Operational evidence complete: **false**" in rendered
     assert "external_evidence_required" in rendered
 
