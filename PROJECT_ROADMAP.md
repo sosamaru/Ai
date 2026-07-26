@@ -76,7 +76,7 @@ Current construction completion: **100% integrated on main for the approved PAPE
 
 No remaining code-only construction item is recorded for the approved PAPER/non-live scope. New development must begin from a separately reviewed requirement and must not be presented as operational or LIVE readiness.
 
-Separately reviewed operational-support requirements now include supervised SMTP and TOTP verification runners. SMTP delivery records redacted provider evidence. TOTP verification validates a current authenticator code, claims each enrollment/time counter once, rejects replay, and persists no secret or code plaintext. Neither workflow grants trading authority.
+Separately reviewed operational-support requirements now include supervised SMTP and TOTP verification runners plus an Alpaca PAPER readiness monitor. The monitor collects official PAPER account/order snapshots, detects missing days, excessive capture gaps, unhealthy account state, duplicate client-order mappings, insufficient order evidence, and excessive drawdown, then records an append-only derived report. None of these workflows grants trading authority.
 
 ### Operational evidence still required
 
@@ -90,6 +90,8 @@ Separately reviewed operational-support requirements now include supervised SMTP
 The SMTP verification implementation is not operational completion. The checkbox remains open until owner-controlled credentials are used, the provider accepts delivery, and mailbox arrival is manually confirmed.
 
 The TOTP verification implementation is not operational completion. The checkbox remains open until the owner enrolls the actual secret in an authenticator, successfully verifies a current code, and confirms that recovery material is stored offline.
+
+The Alpaca PAPER readiness monitor is not 30-day operational completion. It automates evidence collection and fail-closed assessment, but only real owner-controlled PAPER credentials and actual elapsed calendar time may satisfy the duration requirement.
 
 ## Current implementation result
 
@@ -107,6 +109,8 @@ The SMTP operational runner requires the exact `AIPRO_SMTP_VERIFY=YES` opt-in, h
 
 The TOTP operational runner requires the exact `AIPRO_TOTP_VERIFY=YES` opt-in, receives the current code through a hidden prompt, stores only an enrollment-label hash and time counter, rejects accepted-counter reuse, and records append-only accepted or rejected evidence without persisting the TOTP secret or code.
 
+The Alpaca PAPER readiness runner requires exact `AIPRO_ALPACA_PAPER_VERIFY=YES`, accepts only the official PAPER API client, appends raw account/order snapshots, derives a deterministic readiness report, and returns a failing status until every configured evidence gate passes.
+
 All outputs remain PAPER research, governance, operational-support, or repository-integrity evidence. They do not submit real orders, enable LIVE mode, automatically mutate champion state, or bypass risk, authorization, reconciliation, HALTED, or kill-switch controls.
 
 ## Known limitations
@@ -120,6 +124,7 @@ All outputs remain PAPER research, governance, operational-support, or repositor
 - Completion Manifest success proves repository traceability for the approved construction scope only; it does not prove operational readiness, live safety, or profitability.
 - SMTP server acceptance does not prove mailbox arrival; supervised manual confirmation is still required.
 - A valid TOTP code does not prove that recovery material is safely stored or that the operator device remains secure.
+- PAPER monitor test fixtures do not count toward the real 30-calendar-day requirement.
 - PR #62 passed the complete dependency-free test workflow before merge. The merged `main` push workflow has not been separately confirmed through the available connector.
 - No profitability guarantee is permitted.
 - Real Upbit order creation remains absent, and Alpaca remains PAPER-domain only.
@@ -134,4 +139,4 @@ A development task is complete only when implementation, tests, documentation, l
 
 ## Next priority
 
-Run CI for the supervised TOTP operational-verification implementation. After merge, the owner must execute the documented SMTP and TOTP procedures with actual owner-controlled credentials, confirm mailbox arrival, and verify offline recovery storage. The next development work is operational evidence tooling for the 30-calendar-day Alpaca PAPER observation period; the elapsed-time requirement itself cannot be accelerated or marked complete by code.
+Run CI for the Alpaca PAPER readiness monitor. After merge, configure actual PAPER credentials and schedule one supervised collection per day. The next constructible support item is an operational evidence summary that combines SMTP, TOTP, Alpaca PAPER, and Upbit preflight evidence without granting LIVE authority; actual elapsed-time and owner verification remain mandatory.
