@@ -19,6 +19,7 @@ class CandidateFamily(str, Enum):
     RANDOM_FOREST = "random_forest"
     EXTRA_TREES = "extra_trees"
     GRADIENT_BOOSTING = "gradient_boosting"
+    SEQUENCE_MODEL = "sequence_model"
 
 
 class CandidateStatus(str, Enum):
