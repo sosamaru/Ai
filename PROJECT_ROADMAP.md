@@ -32,9 +32,9 @@ Completed: email OTP, RFC 6238 TOTP, temporary authorization leases, atomic pers
 
 ## V3 intelligence, validation, and model-governance status
 
-Current construction completion: **100% on the current reviewed branch, pending GitHub Actions and merge**
+Current construction completion: **100% integrated on main for the approved PAPER/non-live scope**
 
-### Completed on main or the current reviewed branch
+### Completed and integrated on main
 
 - [x] FRED macro observations, SEC EDGAR filing events, OHLCV validation, and deterministic fingerprints
 - [x] Fixed-order combined feature vectors with lineage and freshness gates
@@ -68,11 +68,13 @@ Current construction completion: **100% on the current reviewed branch, pending 
 - [x] Historical filing outcome evaluation with optional timestamp-aligned benchmark abnormal returns
 - [x] Deterministic Completion Manifest comparing code, tests, documentation, roadmap markers, limitations, and operational evidence boundaries
 - [x] Dedicated regression test for `run.py -> telegram.py -> main.py -> TradingApplication`
-- [x] Regression tests and safety documentation for the approved construction scope
+- [x] Safe `.env.example`, repository security policy, regression tests, and documentation for the approved construction scope
+- [x] Complete dependency-free GitHub Actions workflow passed on PR #62 before merge
+- [x] Completion Manifest integrated into `main`
 
-### Remaining construction gate
+### Development construction status
 
-- [ ] Run the complete GitHub Actions workflow on the Completion Manifest branch and merge it into `main`
+No remaining code-only construction item is recorded for the approved PAPER/non-live scope. New development must begin from a separately reviewed requirement and must not be presented as operational or LIVE readiness.
 
 ### Operational evidence still required
 
@@ -93,7 +95,7 @@ The optional sequence runner constructs a fresh LSTM, GRU, or Transformer encode
 
 The SEC analysis path accepts an existing normalized filing event, bounded public filing HTML, Company Facts evidence for the same CIK, and optional externally supplied price observations. It extracts visible text, accession-matched XBRL facts, deterministic prior-period comparisons, materiality reasons, and historical raw or benchmark-adjusted outcomes without contacting a broker or creating a strategy instruction.
 
-The Completion Manifest now evaluates reviewed development claims against real repository files, SHA-256 file evidence, regression tests, documentation, and exact roadmap markers. Missing paths, missing markers, unsafe paths, and duplicate identifiers fail closed. Real elapsed-time or credential-backed operational evidence is deliberately kept separate and cannot be marked complete by source-code inspection.
+The Completion Manifest evaluates reviewed development claims against real repository files, SHA-256 file evidence, regression tests, documentation, and exact roadmap markers. Missing paths, missing markers, unsafe paths, and duplicate identifiers fail closed. Real elapsed-time or credential-backed operational evidence is deliberately kept separate and cannot be marked complete by source-code inspection.
 
 All outputs remain PAPER research, governance, or repository-integrity evidence. They do not submit real orders, enable LIVE mode, automatically mutate champion state, or bypass risk, authorization, reconciliation, HALTED, or kill-switch controls.
 
@@ -106,7 +108,7 @@ All outputs remain PAPER research, governance, or repository-integrity evidence.
 - Historical outcomes require externally supplied, timestamp-aligned price data and do not contact a market-data provider.
 - Confirmed governance commands do not automatically mutate the champion registry.
 - Completion Manifest success proves repository traceability for the approved construction scope only; it does not prove operational readiness, live safety, or profitability.
-- The current Completion Manifest branch must pass GitHub Actions before merge; the merged `main` push workflow still requires separate confirmation.
+- PR #62 passed the complete dependency-free test workflow before merge. The merged `main` push workflow has not been separately confirmed through the available connector.
 - No profitability guarantee is permitted.
 - Real Upbit order creation remains absent, and Alpaca remains PAPER-domain only.
 
@@ -120,4 +122,4 @@ A development task is complete only when implementation, tests, documentation, l
 
 ## Next priority
 
-Run the complete GitHub Actions workflow on the Completion Manifest branch and merge it. After merge, development construction for the approved PAPER/non-live scope is complete. The next work is operational evidence collection, beginning with dedicated SMTP verification and TOTP enrollment, followed by the required 30-calendar-day Alpaca PAPER observation period. None of those external requirements may be marked complete from code or documentation alone.
+Development construction for the approved PAPER/non-live scope is complete. The next work is operational evidence collection, beginning with dedicated SMTP verification and TOTP enrollment, followed by the required 30-calendar-day Alpaca PAPER observation period. None of those external requirements may be marked complete from code, tests, comments, timestamps, or documentation alone.
