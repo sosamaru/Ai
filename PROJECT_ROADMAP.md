@@ -34,7 +34,7 @@ Completed: email OTP, RFC 6238 TOTP, temporary authorization leases, atomic pers
 
 Current construction completion: **99%**
 
-### Completed on main or the current reviewed branch
+### Completed and integrated on main
 
 - [x] FRED macro observations, SEC EDGAR filing events, OHLCV validation, and deterministic fingerprints
 - [x] Fixed-order combined feature vectors with lineage and freshness gates
@@ -66,7 +66,7 @@ Current construction completion: **99%**
 
 ### Remaining construction
 
-- [ ] Confirm the latest integrated `main` commit and the current sequence-training branch in GitHub Actions
+- [ ] Confirm the latest integrated `main` commit in GitHub Actions
 - [ ] Filing text/XBRL fact extraction, materiality scoring, and historical outcome evaluation
 - [ ] Produce a completion manifest comparing code, tests, documentation, and roadmap claims
 
@@ -94,7 +94,7 @@ All outputs remain PAPER research or governance evidence. They do not contact br
 - Optional PyTorch and TensorFlow packages are not installed in core CI; dependency-free tests validate orchestration through deterministic fake trainers, while real backend execution requires an explicitly provisioned research environment.
 - Boosting and sequence model binaries are not persisted or served; only deterministic PAPER evaluation evidence is produced.
 - Confirmed governance commands do not automatically mutate the champion registry.
-- The newest branch must pass GitHub Actions before merge.
+- PR #60 passed the complete dependency-free test workflow before merge; the merged `main` push workflow still requires separate confirmation.
 - No profitability guarantee is permitted.
 - Real Upbit order creation remains absent, and Alpaca remains PAPER-domain only.
 
@@ -108,4 +108,4 @@ A development task is complete only when implementation, tests, documentation, l
 
 ## Next priority
 
-Run full GitHub Actions on the sequence-training branch. After it passes, merge it and implement filing text/XBRL fact extraction with materiality scoring and historical outcome evaluation while keeping artifacts PAPER-only, domains isolated, and `run.py -> telegram.py -> main.py -> TradingApplication` unchanged.
+Confirm the merged `main` commit in GitHub Actions. Then implement filing text/XBRL fact extraction with materiality scoring and historical outcome evaluation while keeping artifacts PAPER-only, domains isolated, and `run.py -> telegram.py -> main.py -> TradingApplication` unchanged.
