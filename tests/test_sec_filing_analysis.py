@@ -42,7 +42,7 @@ def _html() -> str:
     <body>
       <h1>Quarterly Report</h1>
       <p>Item 2.02 Results of Operations.</p>
-      <p>The company identified a material weakness and will restate prior results.</p>
+      <p>The company identified a material weakness and a restatement of prior results.</p>
       <p>Management discussed liquidity, guidance, and operating performance in detail.</p>
       <p>This additional sentence ensures the visible evidence is comfortably above
       the minimum evidence threshold used by the deterministic scorer.</p>
@@ -263,5 +263,5 @@ def test_content_client_rejects_non_sec_filing_urls():
         "AiPro Research research@example.com",
         opener=lambda *_args, **_kwargs: _Response(b""),
     )
-    with pytest.raises(ValueError, match="SEC"):
+    with pytest.raises(ValueError, match="Archives"):
         client.fetch_filing_html("https://example.com/filing.htm")
