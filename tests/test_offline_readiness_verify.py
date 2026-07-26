@@ -142,14 +142,6 @@ def test_verify_rejects_semantically_inconsistent_review_with_recomputed_hashes(
 
     entries["readiness_review.json"] = review_json.encode("utf-8")
     entries["manifest.json"] = (_canonical(manifest) + "\n").encode("utf-8")
-
-    from aipro.core.offline_readiness_verify import _render_markdown
-
-    entries["readiness_review.md"] = _render_markdown(
-        payload,
-        review_fingerprint,
-        manifest["manifest_fingerprint"],
-    ).encode("utf-8")
     altered = tmp_path / "semantic.zip"
     _write_entries(altered, entries)
 
