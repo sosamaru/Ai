@@ -32,7 +32,7 @@ Completed: email OTP, RFC 6238 TOTP, temporary authorization leases, atomic pers
 
 ## V3 intelligence, validation, and model-governance status
 
-Current construction completion: **99.5%**
+Current construction completion: **100% on the current reviewed branch, pending GitHub Actions and merge**
 
 ### Completed on main or the current reviewed branch
 
@@ -66,12 +66,13 @@ Current construction completion: **99.5%**
 - [x] SEC Company Facts extraction with accession/form matching and prior-period comparisons
 - [x] Deterministic filing materiality scoring from forms, items, reviewed phrases, and XBRL changes
 - [x] Historical filing outcome evaluation with optional timestamp-aligned benchmark abnormal returns
-- [x] Regression tests and safety documentation for the integrated construction scope
+- [x] Deterministic Completion Manifest comparing code, tests, documentation, roadmap markers, limitations, and operational evidence boundaries
+- [x] Dedicated regression test for `run.py -> telegram.py -> main.py -> TradingApplication`
+- [x] Regression tests and safety documentation for the approved construction scope
 
-### Remaining construction
+### Remaining construction gate
 
-- [ ] Confirm the latest integrated `main` commit and the current SEC-analysis branch in GitHub Actions
-- [ ] Produce a completion manifest comparing code, tests, documentation, and roadmap claims
+- [ ] Run the complete GitHub Actions workflow on the Completion Manifest branch and merge it into `main`
 
 ### Operational evidence still required
 
@@ -90,9 +91,11 @@ The optional boosting runner constructs a fresh explicitly requested estimator f
 
 The optional sequence runner constructs a fresh LSTM, GRU, or Transformer encoder for every fold. PyTorch and TensorFlow remain lazy optional dependencies. A sequence window must be contiguous and wholly contained in its train or test partition, scaling statistics come only from training sequences, and model training remains bounded by the reviewed architecture and per-fold materialization limits.
 
-The SEC analysis path now accepts an existing normalized filing event, bounded public filing HTML, Company Facts evidence for the same CIK, and optional externally supplied price observations. It extracts visible text, accession-matched XBRL facts, deterministic prior-period comparisons, materiality reasons, and historical raw or benchmark-adjusted outcomes without contacting a broker or creating a strategy instruction.
+The SEC analysis path accepts an existing normalized filing event, bounded public filing HTML, Company Facts evidence for the same CIK, and optional externally supplied price observations. It extracts visible text, accession-matched XBRL facts, deterministic prior-period comparisons, materiality reasons, and historical raw or benchmark-adjusted outcomes without contacting a broker or creating a strategy instruction.
 
-All outputs remain PAPER research or governance evidence. They do not submit real orders, enable LIVE mode, automatically mutate champion state, or bypass risk, authorization, reconciliation, HALTED, or kill-switch controls.
+The Completion Manifest now evaluates reviewed development claims against real repository files, SHA-256 file evidence, regression tests, documentation, and exact roadmap markers. Missing paths, missing markers, unsafe paths, and duplicate identifiers fail closed. Real elapsed-time or credential-backed operational evidence is deliberately kept separate and cannot be marked complete by source-code inspection.
+
+All outputs remain PAPER research, governance, or repository-integrity evidence. They do not submit real orders, enable LIVE mode, automatically mutate champion state, or bypass risk, authorization, reconciliation, HALTED, or kill-switch controls.
 
 ## Known limitations
 
@@ -102,7 +105,8 @@ All outputs remain PAPER research or governance evidence. They do not submit rea
 - Company Facts comparisons depend on SEC taxonomy consistency and do not yet perform semantic concept aliasing across issuer-specific extensions.
 - Historical outcomes require externally supplied, timestamp-aligned price data and do not contact a market-data provider.
 - Confirmed governance commands do not automatically mutate the champion registry.
-- The current SEC-analysis branch must pass GitHub Actions before merge; the merged `main` push workflow still requires separate confirmation.
+- Completion Manifest success proves repository traceability for the approved construction scope only; it does not prove operational readiness, live safety, or profitability.
+- The current Completion Manifest branch must pass GitHub Actions before merge; the merged `main` push workflow still requires separate confirmation.
 - No profitability guarantee is permitted.
 - Real Upbit order creation remains absent, and Alpaca remains PAPER-domain only.
 
@@ -116,4 +120,4 @@ A development task is complete only when implementation, tests, documentation, l
 
 ## Next priority
 
-Run the complete GitHub Actions workflow on the SEC-analysis branch. After it passes, merge the branch and produce a completion manifest that compares repository code, regression tests, safety documentation, roadmap claims, known limitations, and remaining operational evidence while preserving `run.py -> telegram.py -> main.py -> TradingApplication`.
+Run the complete GitHub Actions workflow on the Completion Manifest branch and merge it. After merge, development construction for the approved PAPER/non-live scope is complete. The next work is operational evidence collection, beginning with dedicated SMTP verification and TOTP enrollment, followed by the required 30-calendar-day Alpaca PAPER observation period. None of those external requirements may be marked complete from code or documentation alone.
