@@ -34,7 +34,7 @@ Completed: email OTP, RFC 6238 TOTP, temporary authorization leases, atomic pers
 
 Current construction completion: **99%**
 
-### Completed and integrated on main
+### Completed on main or the current reviewed branch
 
 - [x] FRED macro observations, SEC EDGAR filing events, OHLCV validation, and deterministic fingerprints
 - [x] Fixed-order combined feature vectors with lineage and freshness gates
@@ -47,7 +47,9 @@ Current construction completion: **99%**
 - [x] Optional isolated gradient-boosting and sequence-model backend specifications
 - [x] Purged walk-forward validation with overlapping-label removal and post-test embargo evidence
 - [x] Deterministic dependency-free logistic PAPER training runner using purged folds
-- [x] Training-only scaling and untouched held-out fold scoring
+- [x] Bounded lazy XGBoost, LightGBM, and CatBoost training adapters using the same purged-fold contract
+- [x] Per-fold estimator isolation and untouched held-out probability scoring
+- [x] Training-only scaling where required and untouched held-out fold scoring
 - [x] Balanced accuracy, Brier calibration, cost-aware expected value, turnover, and sample evidence
 - [x] Deterministic fold, model, candidate-evaluation, report, and governance SHA-256 fingerprints
 - [x] Strict crypto/US-stock research and governance isolation
@@ -62,8 +64,7 @@ Current construction completion: **99%**
 
 ### Remaining construction
 
-- [ ] Confirm the latest integrated `main` commit in GitHub Actions
-- [ ] Add bounded purged-fold training adapters for optional gradient-boosting backends
+- [ ] Confirm the latest integrated `main` commit and this branch in GitHub Actions
 - [ ] Add bounded purged-fold training adapters for optional sequence backends
 - [ ] Filing text/XBRL fact extraction, materiality scoring, and historical outcome evaluation
 - [ ] Produce a completion manifest comparing code, tests, documentation, and roadmap claims
@@ -79,18 +80,18 @@ Current construction completion: **99%**
 
 ## Current implementation result
 
-The integrated research path now moves from validated time-ordered observations through purged/embargoed folds, bounded fitting, untouched scoring, candidate evaluation, champion governance, regime strategy selection, cost-aware sizing, and deterministic PAPER execution validation.
+The research path now moves from validated time-ordered observations through purged/embargoed folds, bounded fitting, untouched scoring, candidate evaluation, champion governance, regime strategy selection, cost-aware sizing, and deterministic PAPER execution validation.
 
-Training statistics are derived only from each training fold. Overlapping label windows are removed before fitting. Post-test embargo indices are retained as evidence. Champion selection, registry changes, monitoring recommendations, operator approvals, and governance command proposals remain distinct fail-closed stages.
+The optional boosting runner constructs a fresh explicitly requested estimator for every fold. XGBoost, LightGBM, and CatBoost remain lazy optional dependencies. Unknown parameters, excessive training budgets, parallel execution, mixed domains, invalid seeds, malformed probabilities, and leakage evidence fail closed.
 
 All outputs remain PAPER research or governance evidence. They do not contact brokers, submit real orders, enable LIVE mode, automatically mutate champion state, or bypass risk, authorization, reconciliation, HALTED, or kill-switch controls.
 
 ## Known limitations
 
-- The concrete purged training runner currently supports a deterministic binary logistic baseline only.
-- Optional boosting and deep-learning packages remain lazily loaded and do not yet have concrete purged training adapters.
+- Optional sequence-model packages remain lazily loaded and do not yet have concrete purged training adapters.
+- Boosting model binaries are not persisted or served; only deterministic PAPER evaluation evidence is produced.
 - Confirmed governance commands do not automatically mutate the champion registry.
-- The newest integrated `main` commits have not yet reported a GitHub Actions workflow run.
+- The newest branch must pass GitHub Actions before merge.
 - No profitability guarantee is permitted.
 - Real Upbit order creation remains absent, and Alpaca remains PAPER-domain only.
 
@@ -104,4 +105,4 @@ A development task is complete only when implementation, tests, documentation, l
 
 ## Next priority
 
-Confirm the integrated main branch in GitHub Actions. Then implement a bounded optional gradient-boosting training adapter that consumes the existing purged-fold contract while keeping dependencies lazy, artifacts PAPER-only, domains isolated, and `run.py -> telegram.py -> main.py -> TradingApplication` unchanged.
+Run full GitHub Actions on this branch. After it passes, merge the bounded boosting adapter and implement a bounded optional sequence-model training adapter using the same purged-fold evidence contract while keeping dependencies lazy, artifacts PAPER-only, domains isolated, and `run.py -> telegram.py -> main.py -> TradingApplication` unchanged.
