@@ -71,6 +71,7 @@ Current construction completion: **100% integrated on main for the approved PAPE
 - [x] Dedicated regression test for `run.py -> telegram.py -> main.py -> TradingApplication`
 - [x] Safe `.env.example`, repository security policy, regression tests, and documentation for the approved construction scope
 - [x] Complete dependency-free GitHub Actions workflow passed on PR #62 before merge
+- [x] Complete dependency-free GitHub Actions workflow passed on PR #71 before merge
 - [x] Completion Manifest integrated into `main`
 - [x] Deterministic operational-readiness ZIP export with explicit `execution_authority: false`
 - [x] Database-independent, fail-closed offline verifier for archive structure, canonical content, fingerprints, evidence semantics, and Markdown consistency
@@ -142,7 +143,7 @@ All outputs remain PAPER research, governance, operational-support, or repositor
 - PAPER monitor test fixtures do not count toward the real 30-calendar-day requirement.
 - Manual attestations are statements by the operator and require independent review; hashes prove record continuity, not truth.
 - SHA-256 package verification proves integrity but not signer identity; no detached digital-signature or trusted-key lifecycle is implemented.
-- PR #62 passed the complete dependency-free test workflow before merge. The merged `main` push workflow has not been separately confirmed through the available connector.
+- PR #62 and PR #71 passed the complete dependency-free test workflow before merge. Merged `main` push workflows have not been separately confirmed through the available connector.
 - No profitability guarantee is permitted.
 - Real Upbit order creation remains absent, and Alpaca remains PAPER-domain only.
 
@@ -156,4 +157,4 @@ A development task is complete only when implementation, tests, documentation, l
 
 ## Next priority
 
-Require the complete GitHub Actions workflow to pass for the reviewed SEC concept-alias extension, then begin owner-controlled operational evidence collection: SMTP delivery plus mailbox confirmation, TOTP enrollment plus offline recovery storage, supervised Upbit test-order preflight with real-order creation disabled, and at least 30 calendar days of qualifying Alpaca PAPER evidence. Any detached-signature feature must first receive a separate key-management and trust-model review; SHA-256 integrity must not be described as signer authentication.
+Begin owner-controlled operational evidence collection: SMTP delivery plus mailbox confirmation, TOTP enrollment plus offline recovery storage, supervised Upbit test-order preflight with real-order creation disabled, and at least 30 calendar days of qualifying Alpaca PAPER evidence. Any detached-signature feature must first receive a separate key-management and trust-model review; SHA-256 integrity must not be described as signer authentication.
