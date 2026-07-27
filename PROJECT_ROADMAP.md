@@ -64,6 +64,7 @@ Current construction completion: **100% integrated on main for the approved PAPE
 - [x] Fail-closed rejection of abstention, provider outage, invalid lineage, partial fills, and execution-cost-eroded edge
 - [x] Bounded SEC filing HTML extraction with executable-content exclusion and deterministic evidence
 - [x] SEC Company Facts extraction with accession/form matching and prior-period comparisons
+- [x] Explicit CIK-scoped reviewed SEC concept aliases with unit gates, collision rejection, deterministic evidence, and opt-in canonical comparisons
 - [x] Deterministic filing materiality scoring from forms, items, reviewed phrases, and XBRL changes
 - [x] Historical filing outcome evaluation with optional timestamp-aligned benchmark abnormal returns
 - [x] Deterministic Completion Manifest comparing code, tests, documentation, roadmap markers, limitations, and operational evidence boundaries
@@ -77,6 +78,8 @@ Current construction completion: **100% integrated on main for the approved PAPE
 ### Development construction status
 
 No remaining code-only construction item is recorded for the approved PAPER/non-live scope. New development must begin from a separately reviewed requirement and must not be presented as operational or LIVE readiness.
+
+Issue #70 separately reviewed the SEC concept-alias extension. It adds an explicit opt-in intelligence path only: aliases are scoped to one CIK, require reviewer evidence and approved units, reject ambiguity and canonical collisions, and never use automatic semantic inference.
 
 Separately reviewed operational-support requirements now include supervised SMTP and TOTP verification runners, an Alpaca PAPER readiness monitor, an operational readiness review bundle, a deterministic offline export package, and a database-independent offline verifier. These workflows combine source fingerprints and hashed manual attestations into fail-closed evidence without granting trading authority.
 
@@ -109,6 +112,8 @@ The optional sequence runner constructs a fresh LSTM, GRU, or Transformer encode
 
 The SEC analysis path accepts an existing normalized filing event, bounded public filing HTML, Company Facts evidence for the same CIK, and optional externally supplied price observations. It extracts visible text, accession-matched XBRL facts, deterministic prior-period comparisons, materiality reasons, and historical raw or benchmark-adjusted outcomes without contacting a broker or creating a strategy instruction.
 
+The alias-aware SEC path is separate and explicit. It canonicalizes current and historical facts only through a reviewed CIK-scoped registry, records rule and application fingerprints, allows only approved units, and fails closed on duplicate sources, transitive mappings, registry tampering, CIK mismatch, or conflicting canonical facts. Automatic name similarity, embeddings, or LLM-generated accounting mappings remain prohibited.
+
 The Completion Manifest evaluates reviewed development claims against real repository files, SHA-256 file evidence, regression tests, documentation, and exact roadmap markers. Missing paths, missing markers, unsafe paths, and duplicate identifiers fail closed. Real elapsed-time or credential-backed operational evidence is deliberately kept separate and cannot be marked complete by source-code inspection.
 
 The SMTP operational runner requires the exact `AIPRO_SMTP_VERIFY=YES` opt-in, hashes the recipient before persistence, omits OTP plaintext and exception messages, records success or failure in an append-only SQLite store, and returns a failing process status when delivery is not accepted.
@@ -128,7 +133,7 @@ All outputs remain PAPER research, governance, operational-support, or repositor
 - Optional PyTorch and TensorFlow packages are not installed in core CI; dependency-free tests validate orchestration through deterministic fake trainers, while real backend execution requires an explicitly provisioned research environment.
 - Boosting and sequence model binaries are not persisted or served; only deterministic PAPER evaluation evidence is produced.
 - Filing materiality is a reviewed deterministic heuristic, not a recommendation or profitability forecast.
-- Company Facts comparisons depend on SEC taxonomy consistency and do not yet perform semantic concept aliasing across issuer-specific extensions.
+- Company Facts aliasing is explicit and CIK-scoped only; the system does not automatically infer semantic equivalence, resolve dimensional contexts, or prove that a reviewed accounting mapping is correct.
 - Historical outcomes require externally supplied, timestamp-aligned price data and do not contact a market-data provider.
 - Confirmed governance commands do not automatically mutate the champion registry.
 - Completion Manifest success proves repository traceability for the approved construction scope only; it does not prove operational readiness, live safety, or profitability.
@@ -151,4 +156,4 @@ A development task is complete only when implementation, tests, documentation, l
 
 ## Next priority
 
-Begin owner-controlled operational evidence collection: SMTP delivery plus mailbox confirmation, TOTP enrollment plus offline recovery storage, supervised Upbit test-order preflight with real-order creation disabled, and at least 30 calendar days of qualifying Alpaca PAPER evidence. Any detached-signature feature must first receive a separate key-management and trust-model review; SHA-256 integrity must not be described as signer authentication.
+Require the complete GitHub Actions workflow to pass for the reviewed SEC concept-alias extension, then begin owner-controlled operational evidence collection: SMTP delivery plus mailbox confirmation, TOTP enrollment plus offline recovery storage, supervised Upbit test-order preflight with real-order creation disabled, and at least 30 calendar days of qualifying Alpaca PAPER evidence. Any detached-signature feature must first receive a separate key-management and trust-model review; SHA-256 integrity must not be described as signer authentication.
