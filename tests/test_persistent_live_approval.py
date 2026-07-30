@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from aipro.crypto.persistent_live_approval import LiveApprovalError, LiveApprovalStore
+from aipro.sqlite_utils import connect
 
 
 FINGERPRINT = "a" * 64
@@ -189,7 +190,7 @@ def test_revoke_is_persistent_and_audit_is_immutable(tmp_path) -> None:
     assert revoked.approval_id == requested.approval_id
     assert revoked.state == "REVOKED"
 
-    with sqlite3.connect(database) as connection:
+    with connect(database) as connection:
         with pytest.raises(sqlite3.IntegrityError, match="immutable"):
             connection.execute(
                 "UPDATE crypto_live_approval_audit SET reason = 'tampered' WHERE event_id = 1"
