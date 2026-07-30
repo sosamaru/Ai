@@ -8,6 +8,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Mapping
 
+from aipro.sqlite_utils import ClosingConnection, connect
+
 
 @dataclass(frozen=True, slots=True)
 class ComparisonEvidenceObservation:
@@ -193,9 +195,10 @@ class PaperValidationEvidenceStore:
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
 
-    def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.database_path)
+    def _connect(self) -> ClosingConnection:
+        connection = connect(self.database_path, timeout=5.0)
         connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA busy_timeout = 5000")
         return connection
 
     def _initialize(self) -> None:
