@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from datetime import date, datetime
+from threading import RLock
 from zoneinfo import ZoneInfo
 
 from aipro.app import ACTIVE_CYCLE_STATE_KEY, TradingApplication as LegacyTradingApplication
@@ -31,6 +32,7 @@ class CryptoTradingApplication(LegacyTradingApplication):
     ) -> None:
         self.settings = settings
         self.storage = Storage(settings.db_path)
+        self._market_gate_lock = RLock()
         if settings.market_data_provider == "UPBIT":
             self.market = UpbitMarketData(
                 symbols=settings.crypto_symbols,
@@ -60,13 +62,21 @@ class CryptoTradingApplication(LegacyTradingApplication):
         self.baseline_equity = self._load_baseline()
 
     def _call_with_health_gate(self, operation: Callable[[], object]) -> object:
-        original = self.market
-        self.market_health.delegate = original
-        self.market = self.market_health  # type: ignore[assignment]
-        try:
-            return operation()
-        finally:
-            self.market = original
+        """Execute one legacy operation with a serialized market-health wrapper.
+
+        The legacy application reads ``self.market`` directly. Serializing the temporary
+        wrapper swap prevents concurrent status and cycle calls from making the health
+        checker delegate to itself and recursing.
+        """
+
+        with self._market_gate_lock:
+            original = self.market
+            self.market_health.delegate = original
+            self.market = self.market_health  # type: ignore[assignment]
+            try:
+                return operation()
+            finally:
+                self.market = original
 
     def status(self) -> dict[str, object]:
         result = self._call_with_health_gate(super().status)
