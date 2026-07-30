@@ -6,6 +6,7 @@ a local file.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 from pathlib import Path
@@ -23,13 +24,15 @@ def _decode_value(raw: str, *, line_number: int) -> str:
     quote = value[0]
     if len(value) < 2 or value[-1] != quote:
         raise ValueError(f"unterminated quoted value in .env line {line_number}")
-    inner = value[1:-1]
     if quote == "'":
-        return inner
+        return value[1:-1]
     try:
-        return bytes(inner, "utf-8").decode("unicode_escape")
-    except UnicodeDecodeError as exc:
-        raise ValueError(f"invalid escape sequence in .env line {line_number}") from exc
+        decoded = json.loads(value)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"invalid double-quoted value in .env line {line_number}") from exc
+    if not isinstance(decoded, str):
+        raise ValueError(f"invalid double-quoted value in .env line {line_number}")
+    return decoded
 
 
 def load_env_file(
@@ -53,7 +56,8 @@ def load_env_file(
 
     destination = os.environ if environ is None else environ
     assigned = 0
-    for line_number, raw_line in enumerate(target.read_text(encoding="utf-8").splitlines(), 1):
+    lines = target.read_text(encoding="utf-8").splitlines()
+    for line_number, raw_line in enumerate(lines, 1):
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
@@ -64,7 +68,9 @@ def load_env_file(
         name, raw_value = line.split("=", 1)
         key = name.strip()
         if not _ENV_NAME.fullmatch(key):
-            raise ValueError(f"invalid environment variable name on line {line_number}: {key!r}")
+            raise ValueError(
+                f"invalid environment variable name on line {line_number}: {key!r}"
+            )
         if not override and key in destination:
             continue
         destination[key] = _decode_value(raw_value, line_number=line_number)
