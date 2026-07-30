@@ -6,7 +6,14 @@ Safe-by-default multi-asset automated-trading foundation.
 
 `run.py -> telegram.py -> main.py -> TradingApplication`
 
-The execution flow remains unchanged while asset-specific code is separated behind domain packages.
+The execution flow remains unchanged while asset-specific code is separated behind domain packages. `run.py` loads an optional local `.env` file before launch without overwriting environment variables already injected by a shell, CI system, VPS secret manager, or service supervisor.
+
+## Runtime compatibility
+
+- Supported core runtime: Python 3.11, 3.12, and 3.13
+- Core execution dependencies: Python standard library only
+- Test dependency: pytest
+- CI checks: source/test compilation, full PAPER entrypoint smoke execution, and the complete test suite with warnings treated as errors on every supported Python version
 
 ## Domain layout
 
@@ -53,13 +60,21 @@ Legacy root modules remain in use where needed to preserve restart compatibility
 
 ## Run
 
-Without a Telegram token, AiPro executes one console cycle:
+Create a local configuration only when needed:
+
+```bash
+cp .env.example .env
+```
+
+A local `.env` file is optional. Existing process environment variables always take precedence, so CI/VPS secret injection is not overwritten.
+
+Without a Telegram token, AiPro executes one safe PAPER console cycle:
 
 ```bash
 python run.py
 ```
 
-To enable Telegram polling, set both variables:
+To enable Telegram polling, set both variables in the process environment or local `.env` file:
 
 ```bash
 AIPRO_TELEGRAM_BOT_TOKEN=<bot-token>
@@ -88,8 +103,10 @@ When configured, the snapshot database appends immutable exchange observations. 
 ## Test
 
 ```bash
-python -m pytest -q
+python -m pytest -q -W error
 ```
+
+The GitHub Actions workflow also compiles the repository and runs `python run.py` in PAPER mode on Python 3.11, 3.12, and 3.13.
 
 ## Operational validation required
 
