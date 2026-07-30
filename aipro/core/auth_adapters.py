@@ -5,12 +5,13 @@ import hashlib
 import hmac
 import os
 import smtplib
-import sqlite3
 import struct
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.message import EmailMessage
 from pathlib import Path
+
+from aipro.sqlite_utils import connect
 
 
 class SmtpOtpSender:
@@ -115,7 +116,8 @@ class AuthorizationAuditStore:
 
     def __init__(self, path: str | Path) -> None:
         self.path = str(path)
-        with sqlite3.connect(self.path) as db:
+        with connect(self.path, timeout=5.0) as db:
+            db.execute("PRAGMA busy_timeout = 5000")
             db.execute("CREATE TABLE IF NOT EXISTS authorization_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, event_type TEXT NOT NULL, created_at_utc TEXT NOT NULL, stage TEXT NOT NULL, recipient_hash TEXT NOT NULL, reason TEXT NOT NULL, fingerprint TEXT UNIQUE NOT NULL)")
             db.execute("CREATE TRIGGER IF NOT EXISTS authorization_audit_no_update BEFORE UPDATE ON authorization_audit BEGIN SELECT RAISE(ABORT, 'append only'); END")
             db.execute("CREATE TRIGGER IF NOT EXISTS authorization_audit_no_delete BEFORE DELETE ON authorization_audit BEGIN SELECT RAISE(ABORT, 'append only'); END")
@@ -124,11 +126,13 @@ class AuthorizationAuditStore:
         parsed = datetime.fromisoformat(event.created_at_utc)
         if parsed.tzinfo is None:
             raise ValueError("audit timestamp must be timezone-aware")
-        with sqlite3.connect(self.path) as db:
+        with connect(self.path, timeout=5.0) as db:
+            db.execute("PRAGMA busy_timeout = 5000")
             db.execute("INSERT INTO authorization_audit(event_type, created_at_utc, stage, recipient_hash, reason, fingerprint) VALUES (?, ?, ?, ?, ?, ?)", (event.event_type, event.created_at_utc, event.stage, event.recipient_hash, event.reason, event.fingerprint))
 
     def count(self) -> int:
-        with sqlite3.connect(self.path) as db:
+        with connect(self.path, timeout=5.0) as db:
+            db.execute("PRAGMA busy_timeout = 5000")
             return int(db.execute("SELECT COUNT(*) FROM authorization_audit").fetchone()[0])
 
 
