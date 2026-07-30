@@ -42,8 +42,6 @@ jobs:
         run: python run.py
       - name: Run tests with warnings as errors
         shell: bash
-        env:
-          PYTHONTRACEMALLOC: "5"
         run: |
           set -o pipefail
           python -m pytest -q -W error 2>&1 | tee pytest.log
