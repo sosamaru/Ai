@@ -13,7 +13,9 @@ def test_entrypoint_chain_preserves_run_telegram_main_application_contract():
     telegram_source = _source("telegram.py")
     main_source = _source("main.py")
 
+    assert "from aipro.env_loader import load_env_file" in run_source
     assert "from telegram import launch" in run_source
+    assert "load_env_file()" in run_source
     assert "raise SystemExit(launch())" in run_source
 
     assert "from main import build_application" in telegram_source
