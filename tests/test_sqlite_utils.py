@@ -27,12 +27,13 @@ def test_closing_connection_commits_and_rejects_use_after_context(tmp_path) -> N
 
 def test_repository_uses_explicitly_closing_sqlite_helper() -> None:
     offenders: list[str] = []
+    forbidden_call = "sqlite3." + "connect("
     for directory in (ROOT / "aipro", ROOT / "tests"):
         for path in sorted(directory.rglob("*.py")):
             if path.name == "sqlite_utils.py":
                 continue
             source = path.read_text(encoding="utf-8")
-            if "sqlite3.connect(" in source:
+            if forbidden_call in source:
                 offenders.append(str(path.relative_to(ROOT)))
 
     assert offenders == [], (
