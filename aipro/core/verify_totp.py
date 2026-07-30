@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from aipro.core.auth_adapters import TotpVerifier
+from aipro.sqlite_utils import connect
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,7 +39,8 @@ class TotpOperationalStore:
 
     def __init__(self, path: str | Path) -> None:
         self.path = str(path)
-        with sqlite3.connect(self.path) as db:
+        with connect(self.path, timeout=5.0) as db:
+            db.execute("PRAGMA busy_timeout = 5000")
             db.execute(
                 "CREATE TABLE IF NOT EXISTS totp_operational_evidence ("
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, "
@@ -66,7 +68,8 @@ class TotpOperationalStore:
         parsed = datetime.fromisoformat(evidence.created_at_utc)
         if parsed.tzinfo is None:
             raise ValueError("evidence timestamp must be timezone-aware")
-        with sqlite3.connect(self.path) as db:
+        with connect(self.path, timeout=5.0) as db:
+            db.execute("PRAGMA busy_timeout = 5000")
             db.execute(
                 "INSERT INTO totp_operational_evidence("
                 "created_at_utc, enrollment_hash, counter, outcome, reason, fingerprint"
@@ -82,7 +85,8 @@ class TotpOperationalStore:
             )
 
     def accepted_counter_exists(self, *, enrollment_hash: str, counter: int) -> bool:
-        with sqlite3.connect(self.path) as db:
+        with connect(self.path, timeout=5.0) as db:
+            db.execute("PRAGMA busy_timeout = 5000")
             row = db.execute(
                 "SELECT 1 FROM totp_operational_evidence "
                 "WHERE enrollment_hash = ? AND counter = ? AND outcome = 'accepted' LIMIT 1",
@@ -91,7 +95,8 @@ class TotpOperationalStore:
         return row is not None
 
     def count(self) -> int:
-        with sqlite3.connect(self.path) as db:
+        with connect(self.path, timeout=5.0) as db:
+            db.execute("PRAGMA busy_timeout = 5000")
             return int(db.execute("SELECT COUNT(*) FROM totp_operational_evidence").fetchone()[0])
 
 
