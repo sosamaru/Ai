@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import sqlite3
 from datetime import UTC, datetime
 
 import pytest
 
 from aipro.crypto.persistent_live_approval import LiveApprovalError, LiveApprovalStore
+from aipro.sqlite_utils import connect
 
 
 FINGERPRINT = "a" * 64
@@ -22,7 +22,7 @@ def test_concurrent_transition_fails_closed_when_database_is_busy(tmp_path) -> N
     store = LiveApprovalStore(database, lock_timeout_sec=0.05)
     now = datetime(2026, 7, 30, 10, 0, tzinfo=UTC)
 
-    with sqlite3.connect(database) as blocker:
+    with connect(database) as blocker:
         blocker.execute("BEGIN IMMEDIATE")
         with pytest.raises(LiveApprovalError, match="busy"):
             store.request(
