@@ -108,19 +108,33 @@ class TelegramBotClient:
         encoded = parse.urlencode(payload).encode("utf-8")
         req = request.Request(f"{self.base_url}/{method}", data=encoded)
         with request.urlopen(req, timeout=self.timeout_sec + 10) as response:
-            result = json.loads(response.read().decode("utf-8"))
-        if not result.get("ok"):
-            raise RuntimeError(f"Telegram API error: {result}")
-        return result
+            decoded = json.loads(response.read().decode("utf-8"))
+        if not isinstance(decoded, dict):
+            raise RuntimeError("Telegram API returned a non-object response")
+        if not decoded.get("ok"):
+            raise RuntimeError(f"Telegram API error: {decoded}")
+        return decoded
 
     def get_updates(self) -> list[dict[str, Any]]:
         result = self._call(
             "getUpdates",
             {"offset": self.offset, "timeout": self.timeout_sec, "allowed_updates": '["message"]'},
         )
-        updates = result.get("result", [])
+        raw_updates = result.get("result", [])
+        if not isinstance(raw_updates, list):
+            raise RuntimeError("Telegram API result must be a list")
+
+        updates: list[dict[str, Any]] = []
+        rejected = 0
+        for item in raw_updates:
+            if not isinstance(item, dict) or not isinstance(item.get("update_id"), int):
+                rejected += 1
+                continue
+            updates.append(item)
+        if rejected:
+            LOGGER.warning("Ignored %d malformed Telegram updates", rejected)
         if updates:
-            self.offset = max(item["update_id"] for item in updates) + 1
+            self.offset = max(int(item["update_id"]) for item in updates) + 1
         return updates
 
     def send_message(self, chat_id: int, text: str) -> None:
@@ -150,7 +164,7 @@ def _run_polling(app: TradingApplication) -> int:
         except KeyboardInterrupt:
             LOGGER.info("AiPro Telegram polling stopped")
             return 0
-        except (URLError, TimeoutError, RuntimeError, json.JSONDecodeError) as exc:
+        except (URLError, TimeoutError, RuntimeError, json.JSONDecodeError, OSError) as exc:
             LOGGER.error("Telegram polling error: %s", exc)
             time.sleep(3)
 
