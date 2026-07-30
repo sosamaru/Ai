@@ -14,6 +14,7 @@ from aipro.crypto.snapshot_reconciliation import (
     SnapshotComparisonEvidenceStore,
     compare_snapshot_to_paper,
 )
+from aipro.sqlite_utils import connect
 
 
 def _snapshot(tmp_path, *, captured_at: datetime):
@@ -109,7 +110,7 @@ def test_evidence_store_is_append_only_and_separate(tmp_path) -> None:
     assert stored.status == "MATCH"
     payload = json.loads(stored.payload_json)
     assert payload["snapshot_id"] == snapshot.snapshot_id
-    with sqlite3.connect(database) as connection:
+    with connect(database) as connection:
         table_names = {
             row[0]
             for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")
