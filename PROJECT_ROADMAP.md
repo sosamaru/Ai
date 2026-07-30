@@ -1,6 +1,6 @@
 # AiPro Project Roadmap
 
-Updated: 2026-07-27
+Updated: 2026-07-30
 
 ## Project goal
 
@@ -22,7 +22,7 @@ Crypto and US-stock capital, broker state, risk limits, credentials, order IDs, 
 
 Overall completion: **100%**
 
-Completed: execution-flow preservation, PAPER defaults, LIVE guards, persistent balances and baselines, HALTED latch, historical replay, Upbit quotation and read-only inspection, duplicate-order and reconciliation controls, guarded Telegram approval flow, normalized news/sentiment inputs, evidence persistence, regression tests, and safety documentation.
+Completed: execution-flow preservation, PAPER defaults, LIVE guards, persistent balances and baselines, HALTED latch, historical replay, Upbit quotation and read-only inspection, duplicate-order and reconciliation controls, guarded Telegram approval flow, guarded snapshot-to-PAPER comparison, normalized news/sentiment inputs, evidence persistence, regression tests, and safety documentation.
 
 ## V2 integration status
 
@@ -75,6 +75,8 @@ Current construction completion: **100% integrated on main for the approved PAPE
 - [x] Completion Manifest integrated into `main`
 - [x] Deterministic operational-readiness ZIP export with explicit `execution_authority: false`
 - [x] Database-independent, fail-closed offline verifier for archive structure, canonical content, fingerprints, evidence semantics, and Markdown consistency
+- [x] Guarded read-only Upbit snapshot-to-PAPER comparison runner merged from PR #30 after successful CI
+- [x] Conflict-safe persistent crypto approval evidence added without replacing the existing compatibility API
 
 ### Development construction status
 
@@ -83,6 +85,16 @@ No remaining code-only construction item is recorded for the approved PAPER/non-
 Issue #70 separately reviewed the SEC concept-alias extension. It adds an explicit opt-in intelligence path only: aliases are scoped to one CIK, require reviewer evidence and approved units, reject ambiguity and canonical collisions, and never use automatic semantic inference.
 
 Separately reviewed operational-support requirements now include supervised SMTP and TOTP verification runners, an Alpaca PAPER readiness monitor, an operational readiness review bundle, a deterministic offline export package, and a database-independent offline verifier. These workflows combine source fingerprints and hashed manual attestations into fail-closed evidence without granting trading authority.
+
+### Merge consolidation completed on 2026-07-30
+
+- PR #30 was merged after its complete dependency-free test workflow succeeded.
+- The useful PR #32 approval-state behavior was re-integrated as `aipro/crypto/persistent_live_approval.py` so the current `aipro/crypto/live_approval.py` API remains intact.
+- The persistent approval store validates state, timezone-aware timestamps, SHA-256 evidence, operator identity continuity, readiness continuity, HALTED state, expiry, and the explicit environment guard.
+- Approval audit records are append-only and protected against UPDATE and DELETE.
+- Stale foundation PRs that are already superseded by current `main` are closed rather than force-merged, preventing regression of code, documentation, completion status, and safety gates.
+- The merge-consolidation pull request must pass the complete repository test workflow before merge.
+- No real-order endpoint, broker mutation, LIVE authorization grant, or domain-state mixing is introduced.
 
 ### Operational evidence still required
 
@@ -127,6 +139,10 @@ The operational readiness review carries forward source fingerprints, stores onl
 
 The deterministic export packages the latest readiness review as canonical JSON, human-readable Markdown, and a manifest with fixed ZIP metadata and explicit non-execution authority. The offline verifier reads no source database, extracts no files to disk, enforces bounded archive structure, recomputes all version-1 fingerprints, checks evidence/blocker semantics, and rejects any inconsistent human-readable summary.
 
+The guarded snapshot comparison runner requires explicit opt-in, reads only the latest immutable Upbit snapshot and a supplied PAPER observation, validates timestamps, non-negative balances, and unique order IDs, and persists redacted append-only comparison evidence without mutating either account.
+
+The persistent approval evidence store records the guarded crypto approval sequence in an isolated SQLite database while preserving the existing compatibility state machine. It rechecks readiness, operator identity, expiry, HALTED, and environment guards at each relevant transition and cannot authorize the US-stock domain or any order adapter.
+
 All outputs remain PAPER research, governance, operational-support, or repository-integrity evidence. They do not submit real orders, enable LIVE mode, automatically mutate champion state, or bypass risk, authorization, reconciliation, HALTED, or kill-switch controls.
 
 ## Known limitations
@@ -143,7 +159,7 @@ All outputs remain PAPER research, governance, operational-support, or repositor
 - PAPER monitor test fixtures do not count toward the real 30-calendar-day requirement.
 - Manual attestations are statements by the operator and require independent review; hashes prove record continuity, not truth.
 - SHA-256 package verification proves integrity but not signer identity; no detached digital-signature or trusted-key lifecycle is implemented.
-- PR #62 and PR #71 passed the complete dependency-free test workflow before merge. Merged `main` push workflows have not been separately confirmed through the available connector.
+- PR #62, PR #71, and PR #30 passed the complete dependency-free test workflow before merge. The merge-consolidation PR must also pass before integration.
 - No profitability guarantee is permitted.
 - Real Upbit order creation remains absent, and Alpaca remains PAPER-domain only.
 
@@ -157,4 +173,4 @@ A development task is complete only when implementation, tests, documentation, l
 
 ## Next priority
 
-Begin owner-controlled operational evidence collection: SMTP delivery plus mailbox confirmation, TOTP enrollment plus offline recovery storage, supervised Upbit test-order preflight with real-order creation disabled, and at least 30 calendar days of qualifying Alpaca PAPER evidence. Any detached-signature feature must first receive a separate key-management and trust-model review; SHA-256 integrity must not be described as signer authentication.
+Begin owner-controlled operational evidence collection: SMTP delivery plus mailbox confirmation, TOTP enrollment plus offline recovery storage, supervised Upbit test-order preflight with real-order creation disabled, and at least 30 calendar days of qualifying Alpaca PAPER evidence. Keep future development on short-lived branches based on the latest `main`; close superseded branches instead of force-merging stale code. Any detached-signature feature must first receive a separate key-management and trust-model review; SHA-256 integrity must not be described as signer authentication.
