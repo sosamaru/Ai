@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from aipro.sqlite_utils import ClosingConnection, connect
+
 _REQUESTED = "REQUESTED"
 _CONFIRMED = "CONFIRMED"
 _ACTIVE = "ACTIVE"
@@ -64,8 +66,8 @@ class LiveApprovalStore:
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
 
-    def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(
+    def _connect(self) -> ClosingConnection:
+        connection = connect(
             self.database_path,
             timeout=self.lock_timeout_sec,
         )
