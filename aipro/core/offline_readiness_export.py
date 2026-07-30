@@ -10,6 +10,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from aipro.sqlite_utils import connect
+
 
 @dataclass(frozen=True, slots=True)
 class OfflineReadinessExport:
@@ -32,7 +34,7 @@ def _sha256_text(value: str) -> str:
 
 def _latest_review(review_db: str | Path) -> tuple[dict[str, Any], str]:
     try:
-        with sqlite3.connect(str(review_db)) as db:
+        with connect(str(review_db), timeout=5.0) as db:
             row = db.execute(
                 "SELECT payload_json,fingerprint FROM operational_readiness_reviews ORDER BY id DESC LIMIT 1"
             ).fetchone()
