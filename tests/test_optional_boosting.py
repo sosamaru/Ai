@@ -54,7 +54,7 @@ def test_unbounded_parallelism_is_rejected(monkeypatch: pytest.MonkeyPatch) -> N
 def test_excessive_iteration_count_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(boosting, "find_spec", lambda package: object())
 
-    with pytest.raises(boosting.BackendConfigurationError, match="\[1, 5000\]"):
+    with pytest.raises(boosting.BackendConfigurationError, match=r"\[1, 5000\]"):
         boosting.build_backend("catboost", {"iterations": 5001})
 
 
