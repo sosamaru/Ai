@@ -3,13 +3,13 @@ from __future__ import annotations
 import hashlib
 import os
 import secrets
-import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Protocol
 
 from aipro.core.auth_adapters import SmtpOtpSender
+from aipro.sqlite_utils import connect
 
 
 class OtpSender(Protocol):
@@ -43,7 +43,8 @@ class SmtpVerificationEvidenceStore:
 
     def __init__(self, path: str | Path) -> None:
         self.path = str(path)
-        with sqlite3.connect(self.path) as db:
+        with connect(self.path, timeout=5.0) as db:
+            db.execute("PRAGMA busy_timeout = 5000")
             db.execute(
                 "CREATE TABLE IF NOT EXISTS smtp_verification_evidence ("
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, "
@@ -69,7 +70,8 @@ class SmtpVerificationEvidenceStore:
         attempted_at = datetime.fromisoformat(result.attempted_at_utc)
         if attempted_at.tzinfo is None:
             raise ValueError("attempted_at_utc must be timezone-aware")
-        with sqlite3.connect(self.path) as db:
+        with connect(self.path, timeout=5.0) as db:
+            db.execute("PRAGMA busy_timeout = 5000")
             db.execute(
                 "INSERT INTO smtp_verification_evidence("
                 "attempted_at_utc, recipient_hash, delivered, provider, reason, fingerprint"
@@ -85,7 +87,8 @@ class SmtpVerificationEvidenceStore:
             )
 
     def count(self) -> int:
-        with sqlite3.connect(self.path) as db:
+        with connect(self.path, timeout=5.0) as db:
+            db.execute("PRAGMA busy_timeout = 5000")
             return int(db.execute("SELECT COUNT(*) FROM smtp_verification_evidence").fetchone()[0])
 
 

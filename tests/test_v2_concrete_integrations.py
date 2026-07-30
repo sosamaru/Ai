@@ -9,6 +9,7 @@ from aipro.core.auth_adapters import AuthorizationAuditEvent, AuthorizationAudit
 from aipro.core.authorization_runtime import AuthorizationStateStore, PersistedAuthorizationRuntime
 from aipro.core.live_authorization import LiveAuthorizationManager
 from aipro.crypto.upbit_preflight import UpbitOrderPreflightClient, UpbitTestOrderRequest
+from aipro.sqlite_utils import connect
 from aipro.us_stocks.alpaca_paper import AlpacaPaperClient, AlpacaPaperOrderRequest
 
 
@@ -37,7 +38,7 @@ def test_authorization_audit_is_append_only(tmp_path) -> None:
     event = AuthorizationAuditEvent("OTP_SENT", datetime.now(UTC).isoformat(), "EMAIL_PENDING", "a" * 64)
     store.append(event)
     assert store.count() == 1
-    with sqlite3.connect(path) as db:
+    with connect(path) as db:
         with pytest.raises(sqlite3.IntegrityError):
             db.execute("DELETE FROM authorization_audit")
 

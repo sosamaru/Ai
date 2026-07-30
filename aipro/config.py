@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -78,12 +79,20 @@ class Settings:
     def validate(self) -> None:
         if self.mode not in {"PAPER", "LIVE"}:
             raise ValueError("AIPRO_MODE must be PAPER or LIVE")
+        if self.initial_cash_krw <= 0:
+            raise ValueError("initial_cash_krw must be positive")
         if self.max_positions < 1:
             raise ValueError("max_positions must be at least 1")
-        if not 0 < self.max_position_pct <= 1:
-            raise ValueError("max_position_pct must be in (0, 1]")
-        if self.daily_loss_limit_pct >= 0:
-            raise ValueError("daily_loss_limit_pct must be negative")
+        if not math.isfinite(self.max_position_pct) or not 0 < self.max_position_pct <= 1:
+            raise ValueError("max_position_pct must be finite and in (0, 1]")
+        if not math.isfinite(self.daily_loss_limit_pct) or self.daily_loss_limit_pct >= 0:
+            raise ValueError("daily_loss_limit_pct must be finite and negative")
+        if self.min_order_krw <= 0:
+            raise ValueError("min_order_krw must be positive")
+        if self.min_order_krw > self.initial_cash_krw:
+            raise ValueError("min_order_krw must not exceed initial_cash_krw")
+        if self.log_level not in {"CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"}:
+            raise ValueError("AIPRO_LOG_LEVEL must be CRITICAL, ERROR, WARNING, INFO, or DEBUG")
         if not 1 <= self.telegram_poll_timeout_sec <= 50:
             raise ValueError("telegram_poll_timeout_sec must be between 1 and 50")
         if self.market_data_provider not in {"DEMO", "UPBIT"}:
@@ -94,14 +103,17 @@ class Settings:
             raise ValueError("crypto_symbols must not contain duplicates")
         if any(not symbol.startswith("KRW-") for symbol in self.crypto_symbols):
             raise ValueError("crypto_symbols currently support KRW Upbit pairs only")
-        if self.market_data_timeout_sec <= 0:
-            raise ValueError("market_data_timeout_sec must be positive")
+        if not math.isfinite(self.market_data_timeout_sec) or self.market_data_timeout_sec <= 0:
+            raise ValueError("market_data_timeout_sec must be finite and positive")
         if not 1 <= self.market_data_max_attempts <= 5:
             raise ValueError("market_data_max_attempts must be between 1 and 5")
-        if self.market_data_max_latency_sec <= 0:
-            raise ValueError("market_data_max_latency_sec must be positive")
-        if self.market_data_max_snapshot_age_sec <= 0:
-            raise ValueError("market_data_max_snapshot_age_sec must be positive")
+        if not math.isfinite(self.market_data_max_latency_sec) or self.market_data_max_latency_sec <= 0:
+            raise ValueError("market_data_max_latency_sec must be finite and positive")
+        if (
+            not math.isfinite(self.market_data_max_snapshot_age_sec)
+            or self.market_data_max_snapshot_age_sec <= 0
+        ):
+            raise ValueError("market_data_max_snapshot_age_sec must be finite and positive")
         if not 1 <= self.market_data_max_consecutive_failures <= 100:
             raise ValueError("market_data_max_consecutive_failures must be between 1 and 100")
         if self.telegram_bot_token and not self.telegram_allowed_chat_ids:

@@ -7,6 +7,7 @@ import pytest
 
 from aipro.core.auth_adapters import TotpVerifier
 from aipro.core.verify_totp import TotpOperationalStore, verify_totp_operationally
+from aipro.sqlite_utils import connect
 
 
 SECRET = "JBSWY3DPEHPK3PXP"
@@ -53,7 +54,7 @@ def test_rejects_invalid_code_without_persisting_plaintext(tmp_path) -> None:
 
     assert evidence.outcome == "rejected"
     assert evidence.reason == "invalid_code"
-    with sqlite3.connect(path) as db:
+    with connect(path) as db:
         serialized = repr(db.execute("SELECT * FROM totp_operational_evidence").fetchall())
     assert "000000" not in serialized
     assert SECRET not in serialized
@@ -123,7 +124,7 @@ def test_evidence_is_append_only(tmp_path) -> None:
         at_utc=now,
     )
 
-    with sqlite3.connect(path) as db:
+    with connect(path) as db:
         with pytest.raises(sqlite3.DatabaseError, match="append only"):
             db.execute("UPDATE totp_operational_evidence SET reason = 'changed'")
         with pytest.raises(sqlite3.DatabaseError, match="append only"):

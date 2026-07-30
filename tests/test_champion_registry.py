@@ -11,6 +11,7 @@ from aipro.intelligence.classical_ml import (
     evaluate_candidate,
 )
 from aipro.intelligence.model_champion import select_champion
+from aipro.sqlite_utils import connect
 
 
 def _decision(name: str, accuracy: float, ev_bps: float, domain=ModelDomain.CRYPTO):
@@ -96,7 +97,7 @@ def test_update_and_delete_are_blocked_by_database_triggers(tmp_path):
     registry = ChampionRegistry(path)
     event = registry.activate(_decision("first", 0.60, 10.0), "initial")
 
-    with sqlite3.connect(path) as connection:
+    with connect(path) as connection:
         with pytest.raises(sqlite3.IntegrityError, match="append-only"):
             connection.execute(
                 "UPDATE champion_events SET reason = 'tampered' WHERE event_id = ?",

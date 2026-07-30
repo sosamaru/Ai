@@ -9,6 +9,7 @@ from aipro.core.smtp_operational_verification import (
     SmtpVerificationEvidenceStore,
     run_smtp_verification,
 )
+from aipro.sqlite_utils import connect
 
 
 class FakeSender:
@@ -48,7 +49,7 @@ def test_successful_verification_records_redacted_append_only_evidence(tmp_path)
     assert str(sender.calls[0]["code"]).isdigit()
     assert len(str(sender.calls[0]["code"])) == 6
 
-    with sqlite3.connect(db_path) as db:
+    with connect(db_path) as db:
         row = db.execute(
             "SELECT recipient_hash, delivered, provider, reason, fingerprint "
             "FROM smtp_verification_evidence"
@@ -68,7 +69,7 @@ def test_successful_verification_records_redacted_append_only_evidence(tmp_path)
     assert "recipient" not in columns
     assert "code" not in columns
 
-    with sqlite3.connect(db_path) as db, pytest.raises(sqlite3.DatabaseError):
+    with connect(db_path) as db, pytest.raises(sqlite3.DatabaseError):
         db.execute("DELETE FROM smtp_verification_evidence")
 
 

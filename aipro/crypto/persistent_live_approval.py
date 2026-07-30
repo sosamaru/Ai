@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import secrets
 import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+
+from aipro.sqlite_utils import ClosingConnection, connect
 
 _REQUESTED = "REQUESTED"
 _CONFIRMED = "CONFIRMED"
@@ -50,16 +53,35 @@ class LiveApprovalStore:
     or retries orders and does not grant execution authority.
     """
 
-    def __init__(self, database_path: str | Path) -> None:
+    def __init__(
+        self,
+        database_path: str | Path,
+        *,
+        lock_timeout_sec: float = 5.0,
+    ) -> None:
+        if not math.isfinite(lock_timeout_sec) or not 0.05 <= lock_timeout_sec <= 30.0:
+            raise ValueError("lock_timeout_sec must be finite and between 0.05 and 30")
         self.database_path = Path(database_path)
+        self.lock_timeout_sec = lock_timeout_sec
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
 
-    def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.database_path)
+    def _connect(self) -> ClosingConnection:
+        connection = connect(
+            self.database_path,
+            timeout=self.lock_timeout_sec,
+        )
         connection.row_factory = sqlite3.Row
+        connection.execute(f"PRAGMA busy_timeout = {int(self.lock_timeout_sec * 1000)}")
         connection.execute("PRAGMA foreign_keys = ON")
         return connection
+
+    @staticmethod
+    def _begin_transition(connection: sqlite3.Connection) -> None:
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+        except sqlite3.OperationalError as exc:
+            raise LiveApprovalError("approval store is busy; transition rejected") from exc
 
     def _initialize(self) -> None:
         with self._connect() as connection:
@@ -220,6 +242,7 @@ class LiveApprovalStore:
     def current(self, *, now: datetime | None = None) -> LiveApprovalState | None:
         reference = self._validate_now(now)
         with self._connect() as connection:
+            self._begin_transition(connection)
             state = self._read(connection)
             if state is None or state.state in _TERMINAL or not state.is_expired(now=reference):
                 return state
@@ -267,6 +290,7 @@ class LiveApprovalStore:
         expires_at = reference + timedelta(seconds=ttl_seconds)
 
         with self._connect() as connection:
+            self._begin_transition(connection)
             previous = self._read(connection)
             if (
                 previous is not None
@@ -323,6 +347,7 @@ class LiveApprovalStore:
     ) -> LiveApprovalState:
         reference = self._validate_now(now)
         with self._connect() as connection:
+            self._begin_transition(connection)
             state = self._read(connection)
             if state is None or state.approval_id != approval_id:
                 raise LiveApprovalError("approval sequence not found")
@@ -370,6 +395,7 @@ class LiveApprovalStore:
         )
 
         with self._connect() as connection:
+            self._begin_transition(connection)
             state = self._read(connection)
             if state is None or state.approval_id != approval_id:
                 raise LiveApprovalError("approval sequence not found")
@@ -417,6 +443,7 @@ class LiveApprovalStore:
             raise ValueError("revoke reason is required")
 
         with self._connect() as connection:
+            self._begin_transition(connection)
             state = self._read(connection)
             if state is None:
                 return None

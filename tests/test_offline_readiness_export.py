@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import sqlite3
 import zipfile
 from dataclasses import asdict
 from datetime import UTC, datetime
@@ -11,6 +10,7 @@ import pytest
 
 from aipro.core.offline_readiness_export import export_operational_readiness_bundle
 from aipro.core.operational_readiness_review import OperationalReadinessReview
+from aipro.sqlite_utils import connect
 
 
 def _canonical(value: object) -> str:
@@ -19,7 +19,7 @@ def _canonical(value: object) -> str:
 
 def _write_review(path, review: OperationalReadinessReview, *, fingerprint: str | None = None) -> None:
     payload = _canonical(asdict(review))
-    with sqlite3.connect(path) as db:
+    with connect(path) as db:
         db.execute(
             "CREATE TABLE operational_readiness_reviews ("
             "id INTEGER PRIMARY KEY AUTOINCREMENT, evaluated_at_utc TEXT NOT NULL, "

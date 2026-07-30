@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
-import sqlite3
 from pathlib import Path
+
+from aipro.sqlite_utils import ClosingConnection, connect
 
 
 class Storage:
@@ -11,8 +12,11 @@ class Storage:
         self.path = path
         self._initialize()
 
-    def _connect(self) -> sqlite3.Connection:
-        return sqlite3.connect(self.path)
+    def _connect(self) -> ClosingConnection:
+        connection = connect(self.path, timeout=5.0)
+        connection.execute("PRAGMA busy_timeout = 5000")
+        connection.execute("PRAGMA foreign_keys = ON")
+        return connection
 
     def _initialize(self) -> None:
         with self._connect() as conn:

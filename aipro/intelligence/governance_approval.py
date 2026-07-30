@@ -17,6 +17,7 @@ import sqlite3
 
 from aipro.intelligence.challenger_monitor import MonitoringDecision, Recommendation
 from aipro.intelligence.classical_ml import ModelDomain
+from aipro.sqlite_utils import ClosingConnection, connect
 
 
 _SCHEMA_VERSION = "paper-governance-approval-v1"
@@ -209,9 +210,10 @@ class GovernanceApprovalLedger:
                 """
             )
 
-    def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.database_path)
+    def _connect(self) -> ClosingConnection:
+        connection = connect(self.database_path, timeout=5.0)
         connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA busy_timeout = 5000")
         return connection
 
     @staticmethod

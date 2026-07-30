@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-import sqlite3
 from dataclasses import asdict, dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Iterable
+
+from aipro.sqlite_utils import connect
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,7 +56,8 @@ class PaperReadinessReport:
 class PaperReadinessReportStore:
     def __init__(self, path: str | Path) -> None:
         self.path = str(path)
-        with sqlite3.connect(self.path) as db:
+        with connect(self.path, timeout=5.0) as db:
+            db.execute("PRAGMA busy_timeout = 5000")
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS paper_readiness_reports(
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,7 +76,8 @@ class PaperReadinessReportStore:
         if timestamp.tzinfo is None:
             raise ValueError("evaluated_at_utc must be timezone-aware")
         payload = json.dumps(asdict(report), sort_keys=True, separators=(",", ":"))
-        with sqlite3.connect(self.path) as db:
+        with connect(self.path, timeout=5.0) as db:
+            db.execute("PRAGMA busy_timeout = 5000")
             db.execute(
                 "INSERT INTO paper_readiness_reports(evaluated_at_utc,payload_json,fingerprint) VALUES(?,?,?)",
                 (report.evaluated_at_utc, payload, report.fingerprint),
@@ -93,7 +96,8 @@ def _decimal(value: Any, field: str) -> Decimal:
 
 
 def _load_snapshots(path: str | Path) -> tuple[dict[str, Any], ...]:
-    with sqlite3.connect(str(path)) as db:
+    with connect(str(path), timeout=5.0) as db:
+        db.execute("PRAGMA busy_timeout = 5000")
         rows = db.execute(
             "SELECT payload_json FROM paper_evidence ORDER BY captured_at_utc,id"
         ).fetchall()

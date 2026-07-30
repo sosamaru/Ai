@@ -20,6 +20,13 @@ _ENV_KEYS = (
     "AIPRO_TELEGRAM_BOT_TOKEN",
     "AIPRO_TELEGRAM_ALLOWED_CHAT_IDS",
     "AIPRO_TELEGRAM_POLL_TIMEOUT_SEC",
+    "AIPRO_MARKET_DATA_PROVIDER",
+    "AIPRO_CRYPTO_SYMBOLS",
+    "AIPRO_MARKET_DATA_TIMEOUT_SEC",
+    "AIPRO_MARKET_DATA_MAX_ATTEMPTS",
+    "AIPRO_MARKET_DATA_MAX_LATENCY_SEC",
+    "AIPRO_MARKET_DATA_MAX_SNAPSHOT_AGE_SEC",
+    "AIPRO_MARKET_DATA_MAX_CONSECUTIVE_FAILURES",
 )
 
 
@@ -89,12 +96,24 @@ def test_live_mode_accepts_only_explicit_double_confirmation(
     ("field", "value", "message"),
     [
         ("AIPRO_MODE", "INVALID", "AIPRO_MODE"),
+        ("AIPRO_INITIAL_CASH_KRW", "0", "initial_cash_krw"),
         ("AIPRO_MAX_POSITIONS", "0", "max_positions"),
         ("AIPRO_MAX_POSITION_PCT", "0", "max_position_pct"),
         ("AIPRO_MAX_POSITION_PCT", "1.01", "max_position_pct"),
+        ("AIPRO_MAX_POSITION_PCT", "nan", "max_position_pct"),
         ("AIPRO_DAILY_LOSS_LIMIT_PCT", "0", "daily_loss_limit_pct"),
+        ("AIPRO_DAILY_LOSS_LIMIT_PCT", "nan", "daily_loss_limit_pct"),
+        ("AIPRO_MIN_ORDER_KRW", "0", "min_order_krw"),
+        ("AIPRO_LOG_LEVEL", "TRACE", "AIPRO_LOG_LEVEL"),
         ("AIPRO_TELEGRAM_POLL_TIMEOUT_SEC", "0", "telegram_poll_timeout_sec"),
         ("AIPRO_TELEGRAM_POLL_TIMEOUT_SEC", "51", "telegram_poll_timeout_sec"),
+        ("AIPRO_MARKET_DATA_TIMEOUT_SEC", "nan", "market_data_timeout_sec"),
+        ("AIPRO_MARKET_DATA_MAX_LATENCY_SEC", "nan", "market_data_max_latency_sec"),
+        (
+            "AIPRO_MARKET_DATA_MAX_SNAPSHOT_AGE_SEC",
+            "nan",
+            "market_data_max_snapshot_age_sec",
+        ),
     ],
 )
 def test_invalid_risk_settings_are_rejected(
@@ -107,6 +126,15 @@ def test_invalid_risk_settings_are_rejected(
     monkeypatch.setenv(field, value)
 
     with pytest.raises(ValueError, match=message):
+        Settings.from_env()
+
+
+def test_minimum_order_cannot_exceed_initial_cash(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_environment(monkeypatch)
+    monkeypatch.setenv("AIPRO_INITIAL_CASH_KRW", "10000")
+    monkeypatch.setenv("AIPRO_MIN_ORDER_KRW", "10001")
+
+    with pytest.raises(ValueError, match="must not exceed"):
         Settings.from_env()
 
 

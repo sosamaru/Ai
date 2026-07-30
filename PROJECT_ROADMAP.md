@@ -93,8 +93,26 @@ Separately reviewed operational-support requirements now include supervised SMTP
 - The persistent approval store validates state, timezone-aware timestamps, SHA-256 evidence, operator identity continuity, readiness continuity, HALTED state, expiry, and the explicit environment guard.
 - Approval audit records are append-only and protected against UPDATE and DELETE.
 - Stale foundation PRs that are already superseded by current `main` are closed rather than force-merged, preventing regression of code, documentation, completion status, and safety gates.
-- The merge-consolidation pull request must pass the complete repository test workflow before merge.
-- No real-order endpoint, broker mutation, LIVE authorization grant, or domain-state mixing is introduced.
+- PR #72 passed the complete repository test workflow before merge.
+- No real-order endpoint, broker mutation, LIVE authorization grant, or domain-state mixing was introduced.
+
+### Professional runtime and compatibility audit on 2026-07-30
+
+Audit branch: `fix/professional-runtime-audit-20260730`, based on the latest `main` after PR #72.
+
+- [x] Added dependency-free local `.env` loading before application construction while preserving injected process-environment precedence.
+- [x] Added fail-closed validation for non-positive cash/order settings, order size above initial cash, unsupported log levels, and non-finite risk or market-data limits.
+- [x] Serialized the legacy-compatible crypto market-health wrapper so concurrent status and cycle calls cannot create self-delegation or restore the wrong provider.
+- [x] Added bounded SQLite busy handling and `BEGIN IMMEDIATE` atomicity for persistent crypto approval state transitions.
+- [x] Standardized SQLite transaction and connection lifetime across runtime, evidence, governance, readiness, and test stores; direct `sqlite3.connect()` use is rejected by a repository contract test.
+- [x] Hardened Telegram JSON object, update-list, and update-ID validation so malformed provider responses cannot corrupt polling state.
+- [x] Removed the existing invalid-regex-escape warning and configured tests to fail on any warning.
+- [x] Expanded CI compatibility coverage to Python 3.11, 3.12, and 3.13 with source/test compilation and a full `python run.py` PAPER smoke execution.
+- [x] Added deterministic regression tests for `.env` parsing, invalid configuration, concurrent market-health access, malformed Telegram updates, approval-database contention, and SQLite resource lifetime.
+- [x] Recorded findings, corrections, validation contract, merge policy, and remaining limitations in `docs/PROFESSIONAL_RUNTIME_AUDIT.md`.
+- [x] PR #73 completed the warning-free Python 3.11–3.13 matrix: compilation, full PAPER entrypoint smoke execution, and 432 regression tests passed on every version.
+
+This audit improves runtime reliability, merge confidence, and compatibility evidence. It does not create real-order capability, prove profitability, or satisfy external operational evidence requirements.
 
 ### Operational evidence still required
 
@@ -159,7 +177,7 @@ All outputs remain PAPER research, governance, operational-support, or repositor
 - PAPER monitor test fixtures do not count toward the real 30-calendar-day requirement.
 - Manual attestations are statements by the operator and require independent review; hashes prove record continuity, not truth.
 - SHA-256 package verification proves integrity but not signer identity; no detached digital-signature or trusted-key lifecycle is implemented.
-- PR #62, PR #71, and PR #30 passed the complete dependency-free test workflow before merge. The merge-consolidation PR must also pass before integration.
+- The core CI does not install optional third-party boosting or deep-learning binaries; real backend compatibility remains a separately provisioned research-environment responsibility.
 - No profitability guarantee is permitted.
 - Real Upbit order creation remains absent, and Alpaca remains PAPER-domain only.
 
@@ -173,4 +191,4 @@ A development task is complete only when implementation, tests, documentation, l
 
 ## Next priority
 
-Begin owner-controlled operational evidence collection: SMTP delivery plus mailbox confirmation, TOTP enrollment plus offline recovery storage, supervised Upbit test-order preflight with real-order creation disabled, and at least 30 calendar days of qualifying Alpaca PAPER evidence. Keep future development on short-lived branches based on the latest `main`; close superseded branches instead of force-merging stale code. Any detached-signature feature must first receive a separate key-management and trust-model review; SHA-256 integrity must not be described as signer authentication.
+After the audited branch is merged, begin owner-controlled operational evidence collection: SMTP delivery plus mailbox confirmation, TOTP enrollment plus offline recovery storage, supervised Upbit test-order preflight with real-order creation disabled, and at least 30 calendar days of qualifying Alpaca PAPER evidence. Keep future development on short-lived branches based on the latest `main`; close superseded branches instead of force-merging stale code. Any detached-signature feature must first receive a separate key-management and trust-model review; SHA-256 integrity must not be described as signer authentication.

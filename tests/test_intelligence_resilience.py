@@ -12,6 +12,7 @@ from aipro.intelligence.resilience import (
     SlidingWindowRateLimiter,
     TTLCache,
 )
+from aipro.sqlite_utils import connect
 
 
 class Clock:
@@ -85,7 +86,7 @@ def test_evidence_store_is_append_only(tmp_path) -> None:
     executor = ResilientExecutor[str]("demo", evidence_store=store)
     assert executor.execute("news", "BTC", lambda: "ok") == "ok"
 
-    with sqlite3.connect(database) as connection:
+    with connect(database) as connection:
         count = connection.execute("SELECT COUNT(*) FROM intelligence_execution_evidence").fetchone()[0]
         assert count == 1
         with pytest.raises(sqlite3.IntegrityError, match="immutable"):

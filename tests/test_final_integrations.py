@@ -10,6 +10,7 @@ from aipro.core.auth_adapters import AuthorizationAuditEvent, AuthorizationAudit
 from aipro.core.live_authorization import AuthorizationStage, LiveAuthorizationState
 from aipro.core.live_authorization_store import LiveAuthorizationStateStore
 from aipro.crypto.upbit_preflight import UpbitOrderPreflightClient, UpbitTestOrderRequest
+from aipro.sqlite_utils import connect
 from aipro.us_stocks.alpaca_paper import AlpacaPaperClient, AlpacaPaperOrderRequest
 from aipro.us_stocks.paper_evidence import AlpacaPaperEvidenceCollector, PaperEvidenceStore
 
@@ -29,7 +30,7 @@ def test_authorization_audit_is_append_only(tmp_path) -> None:
     event = AuthorizationAuditEvent("OTP_SENT", datetime.now(UTC).isoformat(), "EMAIL_PENDING", "a" * 64)
     store.append(event)
     assert store.count() == 1
-    with sqlite3.connect(path) as db, pytest.raises(sqlite3.IntegrityError):
+    with connect(path) as db, pytest.raises(sqlite3.IntegrityError):
         db.execute("DELETE FROM authorization_audit")
 
 
@@ -68,7 +69,7 @@ def test_paper_evidence_collector_persists_snapshot(tmp_path) -> None:
     store = PaperEvidenceStore(path)
     snapshot = AlpacaPaperEvidenceCollector(FakeClient(), store).collect(captured_at_utc=datetime.now(UTC))
     assert len(snapshot.fingerprint) == 64
-    with sqlite3.connect(path) as db:
+    with connect(path) as db:
         assert db.execute("SELECT COUNT(*) FROM paper_evidence").fetchone()[0] == 1
         with pytest.raises(sqlite3.IntegrityError):
             db.execute("UPDATE paper_evidence SET payload_json='x'")

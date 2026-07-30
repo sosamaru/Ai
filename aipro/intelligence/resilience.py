@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import sqlite3
 import time
 from collections import deque
 from dataclasses import asdict, dataclass
@@ -10,6 +9,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from threading import Lock
 from typing import Callable, Generic, TypeVar
+
+from aipro.sqlite_utils import connect
 
 T = TypeVar("T")
 
@@ -132,7 +133,8 @@ class ExecutionEvidenceStore:
     def __init__(self, database_path: str | Path) -> None:
         self.database_path = Path(database_path)
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(self.database_path) as connection:
+        with connect(self.database_path, timeout=5.0) as connection:
+            connection.execute("PRAGMA busy_timeout = 5000")
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS intelligence_execution_evidence (
@@ -163,7 +165,8 @@ class ExecutionEvidenceStore:
 
     def append(self, evidence: ExecutionEvidence) -> None:
         payload = json.dumps(asdict(evidence), sort_keys=True, separators=(",", ":"))
-        with sqlite3.connect(self.database_path) as connection:
+        with connect(self.database_path, timeout=5.0) as connection:
+            connection.execute("PRAGMA busy_timeout = 5000")
             connection.execute(
                 """
                 INSERT INTO intelligence_execution_evidence (

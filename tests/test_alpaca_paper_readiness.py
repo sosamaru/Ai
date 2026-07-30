@@ -6,6 +6,7 @@ from decimal import Decimal
 
 import pytest
 
+from aipro.sqlite_utils import connect
 from aipro.us_stocks.paper_evidence import PaperEvidenceSnapshot, PaperEvidenceStore
 from aipro.us_stocks.paper_readiness import (
     AlpacaPaperReadinessMonitor,
@@ -106,6 +107,6 @@ def test_empty_evidence_fails_closed_and_report_store_is_append_only(tmp_path):
     assert not report.qualifying
     assert report.reasons == ("NO_EVIDENCE",)
 
-    with sqlite3.connect(report_path) as db:
+    with connect(report_path) as db:
         with pytest.raises(sqlite3.IntegrityError):
             db.execute("DELETE FROM paper_readiness_reports")

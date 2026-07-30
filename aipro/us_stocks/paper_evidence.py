@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-import sqlite3
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from aipro.sqlite_utils import connect
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,7 +25,8 @@ class PaperEvidenceSnapshot:
 class PaperEvidenceStore:
     def __init__(self, path: str | Path) -> None:
         self.path = str(path)
-        with sqlite3.connect(self.path) as db:
+        with connect(self.path, timeout=5.0) as db:
+            db.execute("PRAGMA busy_timeout = 5000")
             db.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS paper_evidence (
@@ -45,7 +47,8 @@ class PaperEvidenceStore:
         if parsed.tzinfo is None:
             raise ValueError("captured_at_utc must be timezone-aware")
         payload = json.dumps(asdict(snapshot), sort_keys=True, separators=(",", ":"), default=str)
-        with sqlite3.connect(self.path) as db:
+        with connect(self.path, timeout=5.0) as db:
+            db.execute("PRAGMA busy_timeout = 5000")
             db.execute(
                 "INSERT INTO paper_evidence(captured_at_utc,payload_json,fingerprint) VALUES(?,?,?)",
                 (snapshot.captured_at_utc, payload, snapshot.fingerprint),

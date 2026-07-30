@@ -9,6 +9,7 @@ import pytest
 
 from aipro.crypto.account import AccountBalance, AccountOrder
 from aipro.crypto.account_snapshot import ReadOnlyAccountSnapshotStore
+from aipro.sqlite_utils import connect
 
 
 def _balances() -> tuple[AccountBalance, ...]:
@@ -59,13 +60,13 @@ def test_snapshot_store_is_append_only(tmp_path) -> None:
     store = ReadOnlyAccountSnapshotStore(database)
     store.append(_balances(), _orders(), captured_at=datetime(2026, 7, 19, tzinfo=UTC))
 
-    with sqlite3.connect(database) as connection:
+    with connect(database) as connection:
         with pytest.raises(sqlite3.IntegrityError, match="immutable"):
             connection.execute(
                 "UPDATE exchange_account_snapshots SET reconciliation_status = 'MATCH' WHERE snapshot_id = 1"
             )
 
-    with sqlite3.connect(database) as connection:
+    with connect(database) as connection:
         with pytest.raises(sqlite3.IntegrityError, match="immutable"):
             connection.execute("DELETE FROM exchange_account_snapshots WHERE snapshot_id = 1")
 
@@ -85,7 +86,7 @@ def test_snapshot_store_keeps_exchange_namespace_separate(tmp_path) -> None:
     store = ReadOnlyAccountSnapshotStore(database)
     store.append(_balances(), _orders())
 
-    with sqlite3.connect(database) as connection:
+    with connect(database) as connection:
         tables = {
             row[0]
             for row in connection.execute(

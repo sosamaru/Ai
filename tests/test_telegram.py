@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+import pytest
+
 from aipro.storage import Storage
-from telegram import TelegramCommandRouter
+from telegram import TelegramBotClient, TelegramCommandRouter
 
 
 @dataclass
@@ -136,3 +138,37 @@ def test_bot_suffix_is_accepted(tmp_path) -> None:
 
     response = router.handle(123, "/status@AiProBot")
     assert "AiPro 상태" in response
+
+
+def test_client_ignores_malformed_updates_and_advances_offset(monkeypatch) -> None:
+    client = TelegramBotClient("test-token", timeout_sec=1)
+    monkeypatch.setattr(
+        client,
+        "_call",
+        lambda method, payload: {
+            "ok": True,
+            "result": [
+                {"update_id": 4, "message": {}},
+                "invalid",
+                {"message": {}},
+                {"update_id": 7, "message": {}},
+            ],
+        },
+    )
+
+    updates = client.get_updates()
+
+    assert [item["update_id"] for item in updates] == [4, 7]
+    assert client.offset == 8
+
+
+def test_client_rejects_non_list_update_result(monkeypatch) -> None:
+    client = TelegramBotClient("test-token", timeout_sec=1)
+    monkeypatch.setattr(
+        client,
+        "_call",
+        lambda method, payload: {"ok": True, "result": {"update_id": 1}},
+    )
+
+    with pytest.raises(RuntimeError, match="must be a list"):
+        client.get_updates()

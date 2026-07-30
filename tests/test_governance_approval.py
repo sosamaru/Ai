@@ -5,6 +5,7 @@ import pytest
 from aipro.intelligence.challenger_monitor import MonitoringDecision, Recommendation
 from aipro.intelligence.classical_ml import ModelDomain
 from aipro.intelligence.governance_approval import GovernanceApprovalLedger, ReviewOutcome
+from aipro.sqlite_utils import connect
 
 
 def _decision(
@@ -101,7 +102,7 @@ def test_update_and_delete_are_blocked(tmp_path):
     ledger = GovernanceApprovalLedger(path)
     event = ledger.record(_decision(), ReviewOutcome.REJECT, "operator", "immutable")
 
-    with sqlite3.connect(path) as connection:
+    with connect(path) as connection:
         with pytest.raises(sqlite3.IntegrityError, match="append-only"):
             connection.execute(
                 "UPDATE governance_approval_events SET reason = 'tampered' WHERE event_id = ?",

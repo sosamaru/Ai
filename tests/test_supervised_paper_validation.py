@@ -12,6 +12,7 @@ from aipro.crypto.supervised_paper_validation import (
     PaperValidationPolicy,
     evaluate_paper_validation,
 )
+from aipro.sqlite_utils import connect
 
 EVALUATED_AT = datetime(2026, 7, 20, 0, 0, tzinfo=UTC)
 
@@ -146,7 +147,7 @@ def test_evidence_store_is_append_only(tmp_path) -> None:
     stored = store.append(evaluate())
 
     assert stored.status == "PASS"
-    with sqlite3.connect(database_path) as connection:
+    with connect(database_path) as connection:
         with pytest.raises(sqlite3.IntegrityError, match="immutable"):
             connection.execute(
                 "UPDATE crypto_paper_validation_evidence SET status = 'FAIL' WHERE evidence_id = ?",

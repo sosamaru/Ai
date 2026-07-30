@@ -8,6 +8,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from aipro.sqlite_utils import connect
+
 
 _ALLOWED_ATTESTATIONS = {
     "mailbox_arrival_confirmed",
@@ -34,7 +36,8 @@ class OperatorAttestationStore:
 
     def __init__(self, path: str | Path) -> None:
         self.path = str(path)
-        with sqlite3.connect(self.path) as db:
+        with connect(self.path, timeout=5.0) as db:
+            db.execute("PRAGMA busy_timeout = 5000")
             db.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS operator_attestations (
@@ -58,7 +61,8 @@ class OperatorAttestationStore:
             raise ValueError("created_at_utc must be timezone-aware")
         if attestation.kind not in _ALLOWED_ATTESTATIONS:
             raise ValueError("unsupported attestation kind")
-        with sqlite3.connect(self.path) as db:
+        with connect(self.path, timeout=5.0) as db:
+            db.execute("PRAGMA busy_timeout = 5000")
             db.execute(
                 "INSERT INTO operator_attestations(created_at_utc,kind,operator_hash,evidence_note_hash,fingerprint) VALUES(?,?,?,?,?)",
                 (
@@ -111,7 +115,8 @@ class OperationalReadinessReview:
 class OperationalReadinessReviewStore:
     def __init__(self, path: str | Path) -> None:
         self.path = str(path)
-        with sqlite3.connect(self.path) as db:
+        with connect(self.path, timeout=5.0) as db:
+            db.execute("PRAGMA busy_timeout = 5000")
             db.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS operational_readiness_reviews (
@@ -129,7 +134,8 @@ class OperationalReadinessReviewStore:
 
     def append(self, review: OperationalReadinessReview) -> str:
         payload = json.dumps(asdict(review), sort_keys=True, separators=(",", ":"))
-        with sqlite3.connect(self.path) as db:
+        with connect(self.path, timeout=5.0) as db:
+            db.execute("PRAGMA busy_timeout = 5000")
             db.execute(
                 "INSERT INTO operational_readiness_reviews(evaluated_at_utc,payload_json,fingerprint) VALUES(?,?,?)",
                 (review.evaluated_at_utc, payload, review.fingerprint),
@@ -139,7 +145,8 @@ class OperationalReadinessReviewStore:
 
 def _latest_row(path: str | Path, query: str) -> tuple[Any, ...] | None:
     try:
-        with sqlite3.connect(str(path)) as db:
+        with connect(str(path), timeout=5.0) as db:
+            db.execute("PRAGMA busy_timeout = 5000")
             return db.execute(query).fetchone()
     except sqlite3.Error:
         return None
@@ -171,7 +178,8 @@ def build_operational_readiness_review(
     attestations: set[str] = set()
     attestation_fingerprints: list[str] = []
     try:
-        with sqlite3.connect(str(attestation_db)) as db:
+        with connect(str(attestation_db), timeout=5.0) as db:
+            db.execute("PRAGMA busy_timeout = 5000")
             rows = db.execute("SELECT kind,fingerprint FROM operator_attestations ORDER BY id ASC").fetchall()
         for kind, fingerprint in rows:
             attestations.add(str(kind))
