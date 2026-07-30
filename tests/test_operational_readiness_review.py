@@ -12,21 +12,22 @@ from aipro.core.operational_readiness_review import (
     build_operational_readiness_review,
     create_attestation,
 )
+from aipro.sqlite_utils import connect
 
 
 def _seed_sources(tmp_path) -> tuple[str, str, str, str]:
     smtp = str(tmp_path / "smtp.sqlite3")
-    with sqlite3.connect(smtp) as db:
+    with connect(smtp) as db:
         db.execute("CREATE TABLE smtp_verification_evidence(id INTEGER PRIMARY KEY, delivered INTEGER, fingerprint TEXT)")
         db.execute("INSERT INTO smtp_verification_evidence(delivered,fingerprint) VALUES(1,'smtp-fp')")
 
     totp = str(tmp_path / "totp.sqlite3")
-    with sqlite3.connect(totp) as db:
+    with connect(totp) as db:
         db.execute("CREATE TABLE totp_operational_evidence(id INTEGER PRIMARY KEY, outcome TEXT, fingerprint TEXT)")
         db.execute("INSERT INTO totp_operational_evidence(outcome,fingerprint) VALUES('accepted','totp-fp')")
 
     paper = str(tmp_path / "paper.sqlite3")
-    with sqlite3.connect(paper) as db:
+    with connect(paper) as db:
         db.execute("CREATE TABLE paper_readiness_reports(id INTEGER PRIMARY KEY, payload_json TEXT, fingerprint TEXT)")
         db.execute(
             "INSERT INTO paper_readiness_reports(payload_json,fingerprint) VALUES(?,?)",
@@ -101,6 +102,6 @@ def test_attestations_are_append_only_and_validate_kind(tmp_path) -> None:
         created_at_utc=datetime.now(UTC),
     )
     store.append(attestation)
-    with sqlite3.connect(path) as db:
+    with connect(path) as db:
         with pytest.raises(sqlite3.IntegrityError):
             db.execute("DELETE FROM operator_attestations")
