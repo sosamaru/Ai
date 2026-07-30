@@ -4,7 +4,7 @@ Date: 2026-07-30
 
 ## Scope
 
-This audit reviews the current `main` integration after merge consolidation. It covers the preserved entrypoint chain, local startup behavior, configuration validation, Telegram response handling, SQLite contention, crypto market-data health wrapping, persistent approval transitions, Python-version compatibility, and pull-request validation.
+This audit reviews the current `main` integration after merge consolidation. It covers the preserved entrypoint chain, local startup behavior, configuration validation, Telegram response handling, SQLite contention and resource lifetime, crypto market-data health wrapping, persistent approval transitions, Python-version compatibility, and pull-request validation.
 
 The scope remains PAPER and non-live. No real-order endpoint, broker mutation authority, LIVE-readiness approval, or profitability claim is introduced.
 
@@ -22,9 +22,11 @@ Runtime validation now rejects non-positive initial cash and minimum order value
 
 The crypto compatibility runtime temporarily routes the legacy application's market access through the health checker. That swap is now protected by a reentrant lock so concurrent status and cycle calls cannot make the health checker delegate to itself or restore the wrong provider.
 
-### SQLite contention and approval atomicity
+### SQLite contention, resource lifetime, and approval atomicity
 
-Core storage connections now use a bounded SQLite busy timeout. Persistent crypto approval transitions acquire an immediate transaction before reading or changing state. A competing process therefore waits for a bounded period and then fails closed instead of overwriting an approval sequence based on stale state.
+Core storage connections now use a bounded SQLite busy timeout. A shared connection helper commits or rolls back and then explicitly closes each database connection when its transaction context exits. Snapshot, reconciliation, model-governance, operational-evidence, intelligence-resilience, and approval stores use the same lifecycle policy. A repository contract test rejects direct `sqlite3.connect()` use outside the helper so Python 3.13 resource warnings and long-running file-handle leaks cannot silently return.
+
+Persistent crypto approval transitions acquire an immediate transaction before reading or changing state. A competing process therefore waits for a bounded period and then fails closed instead of overwriting an approval sequence based on stale state.
 
 ### Telegram payload hardening
 
@@ -32,7 +34,7 @@ Telegram responses must now be JSON objects, update results must be lists, and m
 
 ### Warning-free compatibility validation
 
-The optional boosting regression test used an invalid Python string escape. It now uses a raw regular expression. CI treats warnings as errors so similar defects cannot silently return.
+The optional boosting regression test used an invalid Python string escape. It now uses a raw regular expression. Python 3.13 additionally exposed SQLite connections that transaction contexts committed but did not close; the explicit connection-lifetime policy resolves that defect. CI treats all warnings as errors so similar defects cannot silently return.
 
 ## Validation contract
 
