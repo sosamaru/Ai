@@ -15,7 +15,7 @@ on:
           - integration
           - test
           - all
-      python-version:
+      python_version:
         description: Python runtime
         required: true
         default: "3.12"
@@ -29,7 +29,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: manual-aipro-${{ github.ref }}-${{ inputs.target }}-${{ inputs.python-version }}
+  group: manual-aipro-${{ github.ref }}-${{ inputs.target }}-${{ inputs.python_version }}
   cancel-in-progress: false
 
 jobs:
@@ -43,7 +43,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ inputs.python-version }}
+          python-version: ${{ inputs.python_version }}
 
       - name: Install test dependency
         run: python -m pip install --upgrade "pytest>=8,<10"
@@ -67,7 +67,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: aipro-${{ inputs.target }}-python-${{ inputs.python-version }}
+          name: aipro-${{ inputs.target }}-python-${{ inputs.python_version }}
           path: aipro-manual.log
           if-no-files-found: error
           retention-days: 14
