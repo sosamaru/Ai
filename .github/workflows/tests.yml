@@ -27,8 +27,8 @@ jobs:
       AIPRO_MARKET_DATA_PROVIDER: DEMO
       AIPRO_TELEGRAM_BOT_TOKEN: ""
       AIPRO_TELEGRAM_ALLOWED_CHAT_IDS: ""
-      AIPRO_DB_PATH: ${{ runner.temp }}/aipro-${{ matrix.python-version }}.db
-      AIPRO_LOG_DIR: ${{ runner.temp }}/logs-${{ matrix.python-version }}
+      AIPRO_DB_PATH: .aipro-ci/aipro-${{ matrix.python-version }}.db
+      AIPRO_LOG_DIR: .aipro-ci/logs-${{ matrix.python-version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
