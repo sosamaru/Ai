@@ -13,7 +13,7 @@ The execution flow remains unchanged while asset-specific code is separated behi
 - Supported core runtime: Python 3.11, 3.12, and 3.13
 - Core execution dependencies: Python standard library only
 - Test dependency: pytest
-- CI checks: source/test compilation, full PAPER entrypoint smoke execution, and the complete test suite with warnings treated as errors on every supported Python version
+- CI checks: environment diagnosis, source/test compilation, canonical PAPER entrypoint execution, explicit integration tests, and the complete test suite with warnings treated as errors on every supported Python version
 
 ## Domain layout
 
@@ -57,6 +57,54 @@ Legacy root modules remain in use where needed to preserve restart compatibility
 - Deduplication, symbol relevance, sentiment fusion, event classification, caching, rate limiting, retry, and circuit breaking
 - Freshness-gated intelligence snapshots with deterministic SHA-256 fingerprints
 - Authenticated Telegram commands, SQLite state/evidence storage, logging, regression tests, and GitHub Actions
+- Unified local/Windows/VPS execution commands with actionable diagnostics
+- Manually runnable GitHub workflow for doctor, compile, smoke, integration, full tests, or the complete validation chain
+
+## Quick execution and recovery
+
+The unified command interface makes every execution stage return a clear success/failure code and identifies the failed stage.
+
+Windows Command Prompt:
+
+```bat
+aipro.cmd doctor --require-pytest
+aipro.cmd smoke
+aipro.cmd integration
+aipro.cmd all
+aipro.cmd run
+```
+
+Windows PowerShell:
+
+```powershell
+.\aipro.ps1 doctor --require-pytest
+.\aipro.ps1 smoke
+.\aipro.ps1 integration
+.\aipro.ps1 all
+.\aipro.ps1 run
+```
+
+Cross-platform:
+
+```bash
+python -m aipro doctor --require-pytest
+python -m aipro compile
+python -m aipro smoke
+python -m aipro integration
+python -m aipro test
+python -m aipro all
+python -m aipro run
+```
+
+When a machine reports execution unavailable, run in this order:
+
+```text
+doctor -> compile -> smoke -> integration -> test -> run
+```
+
+`doctor` checks the Python version, entrypoint files, imports, `.env`/environment validation, writable DB/log paths, and pytest availability. `smoke` uses temporary storage, DEMO market data, no Telegram token, and PAPER mode, so it separates core-runtime failures from external API, credential, firewall, DNS, proxy, or provider failures.
+
+Detailed commands and error corrections are in `docs/EXECUTION_RUNBOOK.md`.
 
 ## Run
 
@@ -72,6 +120,12 @@ Without a Telegram token, AiPro executes one safe PAPER console cycle:
 
 ```bash
 python run.py
+```
+
+The equivalent unified command is:
+
+```bash
+python -m aipro run
 ```
 
 To enable Telegram polling, set both variables in the process environment or local `.env` file:
@@ -102,11 +156,25 @@ When configured, the snapshot database appends immutable exchange observations. 
 
 ## Test
 
+Install pytest once in the selected supported Python environment:
+
+```bash
+python -m pip install --upgrade "pytest>=8,<10"
+```
+
+Then run either the unified complete verification:
+
+```bash
+python -m aipro all
+```
+
+or the direct full regression command:
+
 ```bash
 python -m pytest -q -W error
 ```
 
-The GitHub Actions workflow also compiles the repository and runs `python run.py` in PAPER mode on Python 3.11, 3.12, and 3.13.
+The GitHub Actions workflow diagnoses the environment, compiles the repository, runs `python run.py` in PAPER mode, runs the explicit integration group, and executes the complete regression suite on Python 3.11, 3.12, and 3.13. The separate manual workflow exposes the same targets through the Actions tab once present on the default branch.
 
 ## Operational validation required
 
