@@ -15,36 +15,50 @@ concurrency:
 jobs:
   pytest:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
+    env:
+      AIPRO_MODE: PAPER
+      AIPRO_LIVE_CONFIRM: "NO"
+      ENABLE_LIVE_TRADING: "0"
+      AIPRO_MARKET_DATA_PROVIDER: DEMO
+      AIPRO_TELEGRAM_BOT_TOKEN: ""
+      AIPRO_TELEGRAM_ALLOWED_CHAT_IDS: ""
+      AIPRO_DB_PATH: .aipro-ci/aipro-${{ matrix.python-version }}.db
+      AIPRO_LOG_DIR: .aipro-ci/logs-${{ matrix.python-version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+
       - name: Install test dependency
         run: python -m pip install --upgrade "pytest>=8,<10"
+
+      - name: Diagnose execution environment
+        run: python -m aipro doctor --require-pytest
+
       - name: Compile source and tests
-        run: python -m compileall -q run.py telegram.py main.py aipro tests
-      - name: Run PAPER entrypoint smoke test
-        env:
-          AIPRO_MODE: PAPER
-          AIPRO_LIVE_CONFIRM: "NO"
-          ENABLE_LIVE_TRADING: "0"
-          AIPRO_MARKET_DATA_PROVIDER: DEMO
-          AIPRO_DB_PATH: ${{ runner.temp }}/aipro-${{ matrix.python-version }}.db
-          AIPRO_LOG_DIR: ${{ runner.temp }}/logs-${{ matrix.python-version }}
+        run: python -m aipro compile
+
+      - name: Run canonical PAPER entrypoint
         run: python run.py
-      - name: Run tests with warnings as errors
+
+      - name: Run explicit integration tests
+        run: python -m aipro integration
+
+      - name: Run complete tests with warnings as errors
         shell: bash
         run: |
           set -o pipefail
-          python -m pytest -q -W error 2>&1 | tee pytest.log
+          python -m aipro test 2>&1 | tee pytest.log
+
       - name: Upload pytest log
         if: always()
         uses: actions/upload-artifact@v4

@@ -1,6 +1,6 @@
 # AiPro Project Roadmap
 
-Updated: 2026-07-30
+Updated: 2026-07-31
 
 ## Project goal
 
@@ -114,6 +114,38 @@ Audit branch: `fix/professional-runtime-audit-20260730`, based on the latest `ma
 
 This audit improves runtime reliability, merge confidence, and compatibility evidence. It does not create real-order capability, prove profitability, or satisfy external operational evidence requirements.
 
+### Execution recovery and explicit integration validation on 2026-07-31
+
+Implementation branch: `fix/execution-integration-runner-20260731`; validation record: PR #74.
+
+Code construction completion: **100% for the reviewed execution-recovery scope**
+
+- [x] Added `python -m aipro doctor` to identify unsupported Python, missing entrypoints/imports, invalid `.env` or process configuration, unwritable DB/log paths, and missing pytest.
+- [x] Added explicit `compile`, `smoke`, `integration`, `test`, `all`, and canonical `run` commands under one cross-platform module entrypoint.
+- [x] Added an isolated deterministic PAPER smoke test using DEMO data, temporary DB/log paths, blank Telegram credentials, and disabled LIVE guards.
+- [x] Added a separately executable concrete integration group instead of relying only on indirect coverage inside the complete suite.
+- [x] Added Windows Command Prompt and PowerShell launchers that select Python 3.13, 3.12, or 3.11 and return the underlying process exit code.
+- [x] Added a manually runnable GitHub Actions workflow with validation-target and Python-version selection plus retained logs.
+- [x] Expanded normal CI into visible diagnosis, compilation, canonical PAPER execution, integration, and complete warning-free regression stages.
+- [x] Added CLI regression tests, README commands, and `docs/EXECUTION_RUNBOOK.md` failure-recovery guidance.
+- [x] Preserved `run.py -> telegram.py -> main.py -> TradingApplication` and kept crypto/U.S.-stock state isolated.
+
+Validation and merge policy:
+
+- PR #74 must not merge unless the Python 3.11, 3.12, and 3.13 matrix passes every explicit stage.
+- A repository CI pass proves the clean GitHub runner path only. The user's Windows machine must still run `aipro.cmd doctor --require-pytest` followed by `aipro.cmd all` to identify machine-specific Python, permission, antivirus, firewall, DNS, proxy, credential, or provider failures.
+- Missing SMTP/TOTP credentials, missing 30-day Alpaca PAPER evidence, and missing supervised Upbit evidence remain operational blockers rather than core execution-code failures.
+- No real-order endpoint, LIVE authority, profitability claim, or risk bypass is introduced by the execution runner.
+
+Reason the previous state appeared unusable:
+
+- the existing Actions workflow had no `workflow_dispatch`, so GitHub could not expose a manual Run workflow control;
+- local commands were fragmented and did not identify which prerequisite or stage failed;
+- integration coverage existed inside the full suite but was not separately runnable or visible;
+- no repository Windows launcher consistently selected a supported Python runtime.
+
+Next priority for this scope: obtain successful PR #74 matrix evidence, merge only after success, then run the unified Windows diagnostics on the actual operating machine and record any remaining machine-specific blocker without falsely changing operational-readiness status.
+
 ### Operational evidence still required
 
 - [ ] Configure and verify dedicated SMTP delivery
@@ -180,6 +212,7 @@ All outputs remain PAPER research, governance, operational-support, or repositor
 - The core CI does not install optional third-party boosting or deep-learning binaries; real backend compatibility remains a separately provisioned research-environment responsibility.
 - No profitability guarantee is permitted.
 - Real Upbit order creation remains absent, and Alpaca remains PAPER-domain only.
+- Repository CI cannot prove a specific Windows machine's Python registration, file permissions, antivirus rules, firewall, DNS, proxy, API credentials, or provider reachability; use the unified local diagnostic commands for that evidence.
 
 ## Mandatory future real-order gates
 
@@ -191,4 +224,4 @@ A development task is complete only when implementation, tests, documentation, l
 
 ## Next priority
 
-After the audited branch is merged, begin owner-controlled operational evidence collection: SMTP delivery plus mailbox confirmation, TOTP enrollment plus offline recovery storage, supervised Upbit test-order preflight with real-order creation disabled, and at least 30 calendar days of qualifying Alpaca PAPER evidence. Keep future development on short-lived branches based on the latest `main`; close superseded branches instead of force-merging stale code. Any detached-signature feature must first receive a separate key-management and trust-model review; SHA-256 integrity must not be described as signer authentication.
+Validate PR #74 on Python 3.11, 3.12, and 3.13 and merge only after diagnosis, compilation, canonical PAPER execution, explicit integration tests, and the complete warning-free suite pass. Then run `aipro.cmd doctor --require-pytest` and `aipro.cmd all` on the actual Windows operating machine. After the execution environment is confirmed, continue owner-controlled operational evidence collection: SMTP delivery plus mailbox confirmation, TOTP enrollment plus offline recovery storage, supervised Upbit test-order preflight with real-order creation disabled, and at least 30 calendar days of qualifying Alpaca PAPER evidence. Keep future development on short-lived branches based on the latest `main`; close superseded branches instead of force-merging stale code. Any detached-signature feature must first receive a separate key-management and trust-model review; SHA-256 integrity must not be described as signer authentication.
