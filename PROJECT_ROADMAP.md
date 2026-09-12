@@ -10,7 +10,7 @@ New construction scope: an executable US-stock PAPER portfolio with KRW 200,000 
 
 At inspection, the canonical entrypoint constructs the crypto application. US-stock adapters and research components exist, but this dual portfolio and its runtime wiring are missing. Historical V1–V3 percentages below refer only to their stated construction scopes and do not describe this new requirement or a complete profitable trading service.
 
-New-scope completion: **8/8 verified deliverables (100%; remaining 0%)** for the local PAPER construction scope. Overall LIVE-service completion is not represented by this denominator. Implementation is on `feat/us-dual-capital-20260912`, pending review and remote CI; it is not yet merged into main.
+New-scope completion: **8/8 verified deliverables (100%; remaining 0%)** for the local PAPER construction scope. Overall LIVE-service completion is not represented by this denominator. Implementation is on `feat/us-dual-capital-20260912`, available in [PR #75](https://github.com/sosamaru/Ai/pull/75), pending review and merge; it is not yet merged into main.
 
 - [x] Fixed funding boundary and persistent isolated sleeve accounting.
 - [x] Cost/FX-aware fills, settled cash, and restart-safe atomic execution.
@@ -21,7 +21,7 @@ New-scope completion: **8/8 verified deliverables (100%; remaining 0%)** for the
 - [x] Reproducible demo and chronological replay with honest evidence labels.
 - [x] Regression validation, usage guide, and synchronized completion record.
 
-Verification on 2026-09-12 (Linux, Python 3.12.14): baseline 436 tests passed. After implementation, `python -m aipro all` passed environment diagnosis, compilation, canonical PAPER smoke, 70 integration tests, and **483 warning-free regression tests**. The new portfolio/combined-feature group passed 52 tests. Deterministic synthetic replay completed 4 frames and 3 virtual fills, with no blocked frames; it is not performance or elapsed-time evidence. Remote Python 3.11–3.13 CI is pending until the PR runs.
+Verification on 2026-09-12 (Linux, Python 3.12.14): baseline 436 tests passed. After implementation, `python -m aipro all` passed environment diagnosis, compilation, canonical PAPER smoke, 70 integration tests, and **483 warning-free regression tests**. The new portfolio/combined-feature group passed 52 tests. Deterministic synthetic replay completed 4 frames and 3 virtual fills, with no blocked frames; it is not performance or elapsed-time evidence. Remote Python 3.11–3.13 CI passed on implementation commit `e243c6cc656bf778279584df35d9830781ba2848`: [Actions run #245](https://github.com/sosamaru/Ai/actions/runs/34699848973). The same mandatory CI applies to subsequent documentation updates before merge.
 
 | Delivery scope | Completion | Remaining reason |
 |---|---|---|
