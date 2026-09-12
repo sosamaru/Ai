@@ -2,6 +2,27 @@
 
 Safe-by-default multi-asset automated-trading foundation.
 
+## US-stock dual portfolio — 2026-09-12
+
+An executable **local PAPER simulator** now supports the owner's fixed funding plan:
+KRW 200,000 intraday + KRW 800,000 long-term, no further external contributions,
+isolated cash and realized-profit reinvestment, persistent risk stops, transaction
+costs, settlement delays, and chronological replay. The 2% short-sleeve daily
+target is a profit-stop condition, not a profitability promise.
+
+```bash
+python -m aipro portfolio-demo
+```
+
+The demo uses invented data. Select `AIPRO_RUNTIME=US_DUAL` for the canonical
+runtime and use `config/us_dual_paper.env.example` for file-fed continuous PAPER
+execution. Without this selector the existing crypto runtime remains the default.
+This profile does not contact a brokerage or place actual/PAPER API orders.
+The default strategies are untrained rules; data-feed integration, fitted-model
+validation, corporate-action accounting, and real broker validation remain pending.
+
+See [the Korean execution and limitations guide](docs/US_DUAL_PORTFOLIO.md).
+
 ## Execution flow
 
 `run.py -> telegram.py -> main.py -> TradingApplication`

@@ -101,6 +101,16 @@ class CompletionManifest:
 
 DEFAULT_CLAIMS: tuple[ClaimSpec, ...] = (
     ClaimSpec(
+        claim_id="us_dual_local_paper_portfolio",
+        description="Implement fixed-funding, isolated 200k/800k local PAPER execution; no live or profitability claim.",
+        code_paths=("aipro/us_stocks/portfolio_application.py", "aipro/us_stocks/portfolio_ledger.py",
+                    "aipro/us_stocks/portfolio_market.py", "aipro/us_stocks/portfolio_policy.py",
+                    "aipro/us_stocks/portfolio_strategy.py", "aipro/us_stocks/portfolio_replay.py"),
+        test_paths=("tests/test_us_dual_portfolio.py", "tests/test_combined_features.py"),
+        documentation_paths=("docs/US_DUAL_PORTFOLIO.md",),
+        roadmap_markers=("US dual portfolio", "8/8 verified deliverables"),
+    ),
+    ClaimSpec(
         claim_id="architecture_contract",
         description="Preserve run.py -> telegram.py -> main.py -> TradingApplication.",
         code_paths=("run.py", "telegram.py", "main.py"),

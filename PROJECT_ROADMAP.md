@@ -1,6 +1,37 @@
 # AiPro Project Roadmap
 
-Updated: 2026-07-31
+Updated: 2026-09-12
+
+## Current owner requirement — US dual portfolio
+
+Latest source inspected: `main` at `6be27da5e8ba64d3f1ae162855b05c06f063c3bb` (PR #74 is already merged; the old next-priority paragraph below is superseded).
+
+New construction scope: an executable US-stock PAPER portfolio with KRW 200,000 for intraday trading and KRW 800,000 for long-term holdings. Lifetime external funding is capped at KRW 1,000,000; only proceeds earned inside each sleeve may be reinvested. No borrowing, leverage, or implicit transfers from crypto or between sleeves. The requested 2% daily return is a short-sleeve profit-stop target, not a forecast or guarantee.
+
+At inspection, the canonical entrypoint constructs the crypto application. US-stock adapters and research components exist, but this dual portfolio and its runtime wiring are missing. Historical V1–V3 percentages below refer only to their stated construction scopes and do not describe this new requirement or a complete profitable trading service.
+
+New-scope completion: **8/8 verified deliverables (100%; remaining 0%)** for the local PAPER construction scope. Overall LIVE-service completion is not represented by this denominator. Implementation is on `feat/us-dual-capital-20260912`, pending review and remote CI; it is not yet merged into main.
+
+- [x] Fixed funding boundary and persistent isolated sleeve accounting.
+- [x] Cost/FX-aware fills, settled cash, and restart-safe atomic execution.
+- [x] Intraday momentum and slow long-term trend strategies.
+- [x] Existing market-feature, regime, and optional forecast/EV integration.
+- [x] Profit-stop, loss-stop, drawdown, stale-data, and exposure gates.
+- [x] Canonical runtime, authenticated controls, and bounded continuous PAPER execution.
+- [x] Reproducible demo and chronological replay with honest evidence labels.
+- [x] Regression validation, usage guide, and synchronized completion record.
+
+Verification on 2026-09-12 (Linux, Python 3.12.14): baseline 436 tests passed. After implementation, `python -m aipro all` passed environment diagnosis, compilation, canonical PAPER smoke, 70 integration tests, and **483 warning-free regression tests**. The new portfolio/combined-feature group passed 52 tests. Deterministic synthetic replay completed 4 frames and 3 virtual fills, with no blocked frames; it is not performance or elapsed-time evidence. Remote Python 3.11–3.13 CI is pending until the PR runs.
+
+| Delivery scope | Completion | Remaining reason |
+|---|---|---|
+| Local dual-portfolio PAPER construction | 8/8, 100% | None within this explicitly bounded scope |
+| This profile’s actual brokerage/data integration | 0/1, 0% | Broker, account constraints and providers not confirmed |
+| Supplied fitted model validated for this profile | 0 validated candidates | Historical dataset, training and out-of-sample evidence missing |
+| Actual elapsed PAPER evidence for this profile | 0/30 required calendar days, 0% | Synthetic replay is excluded |
+| Complete real-money trading service | Not complete; percentage not yet measurable | Broker-dependent scope, corporate actions, real-account reconciliation and LIVE review unresolved |
+
+Reason the overall trading service remains incomplete: no real market-data/broker adapter is wired into this new runtime; fitted-model inference is opt-in and no trained model is supplied; corporate-action/dividend/tax accounting and real USD account reconciliation remain to implement; actual long-duration PAPER evidence and profitability validation do not exist for this profile. Next priority: confirm the user's brokerage and data source, implement those missing accounting/integration requirements, then collect actual PAPER evidence. No extra owner funding is allowed.
 
 ## Project goal
 
@@ -224,4 +255,4 @@ A development task is complete only when implementation, tests, documentation, l
 
 ## Next priority
 
-Validate PR #74 on Python 3.11, 3.12, and 3.13 and merge only after diagnosis, compilation, canonical PAPER execution, explicit integration tests, and the complete warning-free suite pass. Then run `aipro.cmd doctor --require-pytest` and `aipro.cmd all` on the actual Windows operating machine. After the execution environment is confirmed, continue owner-controlled operational evidence collection: SMTP delivery plus mailbox confirmation, TOTP enrollment plus offline recovery storage, supervised Upbit test-order preflight with real-order creation disabled, and at least 30 calendar days of qualifying Alpaca PAPER evidence. Keep future development on short-lived branches based on the latest `main`; close superseded branches instead of force-merging stale code. Any detached-signature feature must first receive a separate key-management and trust-model review; SHA-256 integrity must not be described as signer authentication.
+PR #74 is already merged. Review the new US dual-portfolio branch and its Python 3.11–3.13 CI results. Confirm the owner’s actual US-stock brokerage and data source, then implement the USD-account/settlement integration, corporate-action and dividend/tax accounting, and input acquisition described in `docs/US_DUAL_PORTFOLIO.md`. Validate the baseline and fitted candidates with point-in-time historical data before collecting at least 30 calendar days of actual qualifying broker PAPER evidence. Keep the existing SMTP/TOTP and other mandatory live-readiness gates intact. Keep all development on branches based on latest main; no real-money order activation or additional owner contributions are part of this change.

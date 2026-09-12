@@ -20,17 +20,22 @@ LOGGER = logging.getLogger(__name__)
 class TelegramCommandRouter:
     app: TradingApplication
     allowed_chat_ids: frozenset[int]
-    approval: LiveApprovalStateMachine = field(init=False)
+    approval: LiveApprovalStateMachine | None = field(init=False, default=None)
 
     def __post_init__(self) -> None:
-        self.approval = LiveApprovalStateMachine(self.app.storage)
+        if getattr(self.app, "asset_class", None) != "us_stock":
+            self.approval = LiveApprovalStateMachine(self.app.storage)
 
     def handle(self, chat_id: int, text: str) -> str:
         if chat_id not in self.allowed_chat_ids:
             LOGGER.warning("Rejected unauthorized Telegram chat_id=%s", chat_id)
             return "권한이 없습니다."
 
+        if not text.strip():
+            return "명령어를 입력하세요. /help를 사용하세요."
         command = text.strip().split(maxsplit=1)[0].split("@", maxsplit=1)[0].lower()
+        if getattr(self.app, "asset_class", None) == "us_stock":
+            return self._handle_us(command)
         if command == "/status":
             return self._format_status()
         if command == "/run_once":
@@ -80,6 +85,40 @@ class TelegramCommandRouter:
                 "/help - 명령어 보기"
             )
         return "지원하지 않는 명령입니다. /help를 사용하세요."
+
+    def _handle_us(self, command: str) -> str:
+        if command in {"/status", "/portfolio"}:
+            return self._format_us_status()
+        if command == "/run_once":
+            result = self.app.run_once()
+            return f"로컬 모의 사이클: {result.get('reason', 'processed')}\n" + self._format_us_status()
+        if command == "/halt":
+            self.app.halt()
+            return "신규 매수를 중단했습니다. 보유분은 다음 유효한 장중 시세에서 모의 청산을 시도합니다."
+        if command == "/go":
+            try:
+                self.app.resume()
+            except RuntimeError as exc:
+                return f"재개 불가: {exc}"
+            return "모의거래 중단을 해제했습니다. 일일 기준금액과 수익 목표 중단은 유지합니다."
+        if command in {"/ai_upbit_go", "/confirm"}:
+            return "미국 주식 전용 모의 운용입니다. 업비트 승인 명령은 적용되지 않습니다."
+        return "미국 주식 PAPER 명령\n/status 또는 /portfolio\n/run_once\n/halt\n/go\n/help"
+
+    def _format_us_status(self) -> str:
+        status = self.app.status()
+        lines = ["AiPro 미국 주식 · 로컬 모의거래", "외부 지원금: 1,000,000원 / 추가 입금: 0원",
+                 f"전체 중단: {status.get('global_halt') or '없음'}"]
+        if status.get("stale"):
+            lines.append("주의: 마지막 평가 시세가 오래되었습니다.")
+        if not status["sleeves"]:
+            lines.append("시장 입력 대기 중입니다.")
+        for key, label in (("short", "단타"), ("long", "장기")):
+            book = status["sleeves"].get(key)
+            if book:
+                lines.append(f"{label}: 평가 {float(book['equity_krw']):,.0f}원 / 일간 {float(book['daily_return_pct']):+.2f}% / 보유 {len(book['positions'])}개")
+                lines.append(f"  가용 현금 {float(book['cash_krw']):,.0f}원 / 미결제 {float(book['unsettled_krw']):,.0f}원 / 중단 {book['halt'] or ('목표 도달' if book['profit_stop'] else '없음')}")
+        return "\n".join(lines)
 
     def _format_status(self) -> str:
         status = self.app.status()
@@ -149,9 +188,13 @@ def _run_polling(app: TradingApplication) -> int:
         settings.telegram_poll_timeout_sec,
     )
     LOGGER.info("AiPro Telegram polling started")
+    next_cycle = time.monotonic()
 
     while True:
         try:
+            if settings.paper_interval_seconds and time.monotonic() >= next_cycle:
+                app.run_once()
+                next_cycle = time.monotonic() + settings.paper_interval_seconds
             for update in client.get_updates():
                 message = update.get("message") or {}
                 chat = message.get("chat") or {}
@@ -164,7 +207,7 @@ def _run_polling(app: TradingApplication) -> int:
         except KeyboardInterrupt:
             LOGGER.info("AiPro Telegram polling stopped")
             return 0
-        except (URLError, TimeoutError, RuntimeError, json.JSONDecodeError, OSError) as exc:
+        except (URLError, TimeoutError, RuntimeError, ValueError, OSError) as exc:
             LOGGER.error("Telegram polling error: %s", exc)
             time.sleep(3)
 
@@ -173,7 +216,18 @@ def launch() -> int:
     app = build_application()
     LOGGER.info("AiPro starting through telegram.py")
     if not app.settings.telegram_bot_token:
-        LOGGER.info("Telegram token not configured; running one console cycle")
-        app.run_once()
-        return 0
+        LOGGER.info("Telegram token not configured; running PAPER console execution")
+        while True:
+            try:
+                app.run_once()
+                if not app.settings.paper_interval_seconds:
+                    return 0
+                time.sleep(app.settings.paper_interval_seconds)
+            except KeyboardInterrupt:
+                return 0
+            except (OSError, ValueError, RuntimeError) as exc:
+                LOGGER.error("PAPER cycle stopped: %s", exc)
+                if not app.settings.paper_interval_seconds:
+                    return 1
+                time.sleep(app.settings.paper_interval_seconds)
     return _run_polling(app)

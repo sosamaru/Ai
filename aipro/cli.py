@@ -30,6 +30,7 @@ INTEGRATION_TEST_PATHS = (
     "tests/test_final_integrations.py",
     "tests/test_telegram.py",
     "tests/test_v2_concrete_integrations.py",
+    "tests/test_us_dual_portfolio.py",
 )
 
 
@@ -94,14 +95,16 @@ def _check_environment() -> CheckResult:
     return CheckResult(
         "환경 설정",
         "OK",
-        f"{source}; mode={settings.mode}, provider={settings.market_data_provider}",
+        f"{source}; mode={settings.mode}, runtime={settings.runtime}, provider={settings.market_data_provider}",
     )
 
 
 def _check_runtime_directories() -> CheckResult:
     try:
         settings = Settings.from_env()
-        for directory in (settings.db_path.parent, settings.log_dir):
+        db_directory = (Path(os.getenv("AIPRO_US_DUAL_DB_PATH", "data/us_dual_paper.sqlite3")).parent
+                        if settings.runtime == "US_DUAL" else settings.db_path.parent)
+        for directory in (db_directory, settings.log_dir):
             directory.mkdir(parents=True, exist_ok=True)
             with tempfile.NamedTemporaryFile(dir=directory, prefix=".aipro-write-", delete=True):
                 pass
@@ -148,6 +151,8 @@ def _safe_runtime_env(extra: Mapping[str, str] | None = None) -> dict[str, str]:
     env.update(
         {
             "AIPRO_MODE": "PAPER",
+            "AIPRO_RUNTIME": "CRYPTO",
+            "AIPRO_PAPER_INTERVAL_SECONDS": "0",
             "AIPRO_LIVE_CONFIRM": "NO",
             "ENABLE_LIVE_TRADING": "0",
             "AIPRO_MARKET_DATA_PROVIDER": "DEMO",
@@ -294,11 +299,26 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("integration", help="핵심 통합 테스트 묶음을 수행합니다.")
     subparsers.add_parser("test", help="전체 회귀 테스트를 수행합니다.")
     subparsers.add_parser("all", help="진단부터 전체 테스트까지 순서대로 수행합니다.")
+    demo = subparsers.add_parser("portfolio-demo", help="100만 원 미국 주식 분리 운용 합성 데모를 실행합니다.")
+    demo.add_argument("--output", type=Path, help="선택적 JSON 보고서 경로")
+    replay_parser = subparsers.add_parser("portfolio-replay", help="시점별 JSONL 시장 입력을 순서대로 재생합니다.")
+    replay_parser.add_argument("input", type=Path)
+    replay_parser.add_argument("--output", type=Path, required=True)
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command in {"portfolio-demo", "portfolio-replay"}:
+        import json
+        from aipro.us_stocks.portfolio_replay import load_jsonl, replay, run_demo
+        if args.command == "portfolio-demo":
+            return run_demo(args.output)
+        report = replay(load_jsonl(args.input))
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(f"PAPER 재생 보고서: {args.output}; 실제 수익성/실거래 준비 검증 아님")
+        return 1 if report["blocked_frames"] else 0
     commands = {
         "doctor": lambda: doctor(require_pytest=args.require_pytest),
         "run": run_application,
