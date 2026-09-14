@@ -93,9 +93,27 @@ def entry_decision(sleeve: str, quote: Quote, frame: MarketFrame, policy: Portfo
     score = features.volume_ratio + features.return_short_pct + info.news_sentiment * 0.25
     if forecaster is None:
         return EntryDecision(True, "short_breakout_vwap_volume", score, features.fingerprint)
-    forecast = forecaster.forecast(quote, features.fingerprint)
-    if forecast is None or forecast.feature_fingerprint != features.fingerprint:
+    try:
+        frame_forecast = getattr(forecaster, "forecast_frame", None)
+        forecast = (frame_forecast(quote, frame, policy, features.fingerprint) if callable(frame_forecast)
+                    else forecaster.forecast(quote, features.fingerprint))
+        if forecast is not None and not isinstance(forecast, ForecastEvidence):
+            raise ValueError("invalid forecast result")
+    except Exception as exc:
+        # An advisory model outage must not roll back exits already required by
+        # portfolio risk controls. Never expose arbitrary model exception text.
+        return EntryDecision(False, "forecast_error:" + type(exc).__name__)
+    if forecast is None:
+        return EntryDecision(False, getattr(forecaster, "last_reason", "forecast_missing_or_lineage_mismatch"))
+    if forecast.feature_fingerprint != features.fingerprint:
         return EntryDecision(False, "forecast_missing_or_lineage_mismatch")
+    try:
+        return _forecast_entry(forecast, quote, frame, policy, equity, regime_features, features, score)
+    except Exception as exc:
+        return EntryDecision(False, "forecast_error:" + type(exc).__name__)
+
+
+def _forecast_entry(forecast, quote, frame, policy, equity, regime_features, features, score) -> EntryDecision:
     validation = validate_paper_strategy(
         domain=Domain.US_STOCK, features=regime_features,
         candidates=(StrategyCandidate("short_momentum", frozenset({Domain.US_STOCK}),

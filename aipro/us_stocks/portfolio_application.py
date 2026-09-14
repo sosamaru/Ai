@@ -36,11 +36,23 @@ class TradingApplication:
         self.settings = settings
         self.policy = policy or PortfolioPolicy()
         self.clock = clock or (lambda: datetime.now(UTC))
+        self.forecaster = forecaster
+        model_path = os.getenv("AIPRO_US_MODEL_PATH", "").strip()
+        model_pin = os.getenv("AIPRO_US_MODEL_SHA256", "").strip()
+        if bool(model_path) != bool(model_pin):
+            raise ValueError("configure both AIPRO_US_MODEL_PATH and AIPRO_US_MODEL_SHA256")
+        if model_path:
+            if forecaster is not None:
+                raise ValueError("choose one explicit model source")
+            from aipro.us_stocks.model_artifact import ArtifactForecastProvider, load_artifact
+            artifact = load_artifact(Path(model_path), expected_fingerprint=model_pin)
+            if artifact.payload["policy_fingerprint"] != self.policy.fingerprint:
+                raise ValueError("model policy mismatch")
+            self.forecaster = ArtifactForecastProvider(artifact)
         self.ledger = PortfolioLedger(db_path or Path(os.getenv("AIPRO_US_DUAL_DB_PATH", "data/us_dual_paper.sqlite3")), self.policy)
         self.market = market
         if self.market is None and os.getenv("AIPRO_US_FRAME_PATH"):
             self.market = FileMarketData(Path(os.environ["AIPRO_US_FRAME_PATH"]))
-        self.forecaster = forecaster
 
     @staticmethod
     def _equity(book: dict, quotes: dict[str, Quote], fx: D) -> D:
@@ -280,8 +292,11 @@ class TradingApplication:
         if not status:
             return {"mode": "PAPER", "execution": "LOCAL_SIMULATION", "reason": "awaiting_market_frame",
                     "external_contributed_krw": "1000000", "remaining_external_funding_krw": "0",
+                    "short_model_id": getattr(self.forecaster, "model_id", "custom-forecast" if self.forecaster else "untrained-rule-baseline"),
                     "global_halt": state["global_halt"], "sleeves": {}}
         status["global_halt"] = state["global_halt"]
+        status["short_model_id"] = getattr(self.forecaster, "model_id", "custom-forecast" if self.forecaster else "untrained-rule-baseline")
+        status["model_last_reason"] = getattr(self.forecaster, "last_reason", "")
         status["stale"] = (instant(self.clock()) - instant(status["as_of_utc"])).total_seconds() > self.policy.frame_max_age_seconds
         for name in status["sleeves"]:
             status["sleeves"][name]["halt"] = state["sleeves"][name]["halt"]

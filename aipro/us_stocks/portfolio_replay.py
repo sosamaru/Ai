@@ -57,7 +57,7 @@ def demo_frames() -> tuple[MarketFrame, ...]:
                     quotes=tuple(replace(q, intraday_bars=()) for q in demo_frame(start.replace(hour=19, minute=56), short_price="10.15").quotes)))
 
 
-def replay(frames: Iterable[MarketFrame], *, policy: PortfolioPolicy | None = None) -> dict:
+def replay(frames: Iterable[MarketFrame], *, policy: PortfolioPolicy | None = None, forecaster=None) -> dict:
     """Isolated event-time run; validation failures never disappear from results."""
     count, blocked, fills, fingerprints = 0, [], [], []
     previous = None
@@ -66,7 +66,7 @@ def replay(frames: Iterable[MarketFrame], *, policy: PortfolioPolicy | None = No
     drawdowns = {name: D(0) for name in INITIAL_ALLOCATIONS}
     synthetic = False
     with tempfile.TemporaryDirectory(prefix="aipro-us-replay-") as temp:
-        app = TradingApplication(Settings(), policy=policy, db_path=Path(temp) / "portfolio.db", clock=lambda: current[0])
+        app = TradingApplication(Settings(), policy=policy, db_path=Path(temp) / "portfolio.db", clock=lambda: current[0], forecaster=forecaster)
         for frame in frames:
             count += 1
             if count > 100000:
@@ -95,6 +95,7 @@ def replay(frames: Iterable[MarketFrame], *, policy: PortfolioPolicy | None = No
             "synthetic": synthetic, "frames": count, "blocked_frames": blocked,
             "dataset_fingerprint": sha256("".join(fingerprints).encode()).hexdigest(),
             "policy_fingerprint": app.policy.fingerprint, "fills": fills,
+            "model_id": getattr(app.forecaster, "model_id", "custom-forecast" if app.forecaster else "untrained-rule-baseline"),
             "maximum_observed_drawdown_pct": {name: str(value * 100) for name, value in drawdowns.items()},
             "final_status": status,
             "limitations": ["Event replay is not broker PAPER validation or proof of profitability.",
@@ -106,12 +107,17 @@ def replay(frames: Iterable[MarketFrame], *, policy: PortfolioPolicy | None = No
 
 
 def load_jsonl(path: Path) -> Iterable[MarketFrame]:
-    with path.open("r", encoding="utf-8") as handle:
-        for index, line in enumerate(handle, 1):
+    with path.open("rb") as handle:
+        index = 0
+        while line := handle.readline(8_000_001):
+            index += 1
             if len(line) > 8_000_000:
                 raise ValueError(f"line {index} exceeds 8 MB")
             if line.strip():
-                yield MarketFrame.from_dict(json.loads(line))
+                try:
+                    yield MarketFrame.from_dict(json.loads(line))
+                except RecursionError:
+                    raise ValueError(f"line {index} nesting exceeds supported depth") from None
 
 
 def run_demo(output: Path | None = None) -> int:

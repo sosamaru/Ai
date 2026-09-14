@@ -111,6 +111,11 @@ class TelegramCommandRouter:
                  f"전체 중단: {status.get('global_halt') or '없음'}"]
         if status.get("stale"):
             lines.append("주의: 마지막 평가 시세가 오래되었습니다.")
+        if status.get("short_model_id"):
+            model = status["short_model_id"]
+            lines.append("단타 모델: " + ("미학습 규칙" if model == "untrained-rule-baseline" else model))
+        if status.get("model_last_reason"):
+            lines.append("모델 상태: " + status["model_last_reason"])
         if not status["sleeves"]:
             lines.append("시장 입력 대기 중입니다.")
         for key, label in (("short", "단타"), ("long", "장기")):
@@ -146,12 +151,19 @@ class TelegramBotClient:
     def _call(self, method: str, payload: dict[str, Any]) -> dict[str, Any]:
         encoded = parse.urlencode(payload).encode("utf-8")
         req = request.Request(f"{self.base_url}/{method}", data=encoded)
-        with request.urlopen(req, timeout=self.timeout_sec + 10) as response:
-            decoded = json.loads(response.read().decode("utf-8"))
+        try:
+            with request.urlopen(req, timeout=self.timeout_sec + 10) as response:
+                raw = response.read(1_000_001)
+            if len(raw) > 1_000_000:
+                raise ValueError("response too large")
+            decoded = json.loads(raw)
+        except (OSError, ValueError) as exc:
+            # HTTP exception strings may contain the bot-token URL or raw body.
+            raise RuntimeError(f"Telegram request failed ({type(exc).__name__})") from None
         if not isinstance(decoded, dict):
             raise RuntimeError("Telegram API returned a non-object response")
-        if not decoded.get("ok"):
-            raise RuntimeError(f"Telegram API error: {decoded}")
+        if decoded.get("ok") is not True:
+            raise RuntimeError("Telegram API rejected the request")
         return decoded
 
     def get_updates(self) -> list[dict[str, Any]]:
@@ -165,16 +177,21 @@ class TelegramBotClient:
 
         updates: list[dict[str, Any]] = []
         rejected = 0
+        seen: set[int] = set()
         for item in raw_updates:
-            if not isinstance(item, dict) or not isinstance(item.get("update_id"), int):
+            if (not isinstance(item, dict) or type(item.get("update_id")) is not int
+                    or not self.offset <= item["update_id"] < 2**63):
                 rejected += 1
                 continue
+            if item["update_id"] in seen:
+                continue
+            seen.add(item["update_id"])
             updates.append(item)
         if rejected:
             LOGGER.warning("Ignored %d malformed Telegram updates", rejected)
         if updates:
             self.offset = max(int(item["update_id"]) for item in updates) + 1
-        return updates
+        return sorted(updates, key=lambda item: item["update_id"])
 
     def send_message(self, chat_id: int, text: str) -> None:
         self._call("sendMessage", {"chat_id": chat_id, "text": text})
@@ -185,7 +202,7 @@ def _run_polling(app: TradingApplication) -> int:
     router = TelegramCommandRouter(app, settings.telegram_allowed_chat_ids)
     client = TelegramBotClient(
         settings.telegram_bot_token,
-        settings.telegram_poll_timeout_sec,
+        min(settings.telegram_poll_timeout_sec, settings.paper_interval_seconds or settings.telegram_poll_timeout_sec),
     )
     LOGGER.info("AiPro Telegram polling started")
     next_cycle = time.monotonic()
@@ -197,10 +214,14 @@ def _run_polling(app: TradingApplication) -> int:
                 next_cycle = time.monotonic() + settings.paper_interval_seconds
             for update in client.get_updates():
                 message = update.get("message") or {}
+                if not isinstance(message, dict):
+                    continue
                 chat = message.get("chat") or {}
+                if not isinstance(chat, dict):
+                    continue
                 chat_id = chat.get("id")
                 text = message.get("text")
-                if not isinstance(chat_id, int) or not isinstance(text, str):
+                if type(chat_id) is not int or not isinstance(text, str):
                     continue
                 response = router.handle(chat_id, text)
                 client.send_message(chat_id, response)
@@ -208,7 +229,7 @@ def _run_polling(app: TradingApplication) -> int:
             LOGGER.info("AiPro Telegram polling stopped")
             return 0
         except (URLError, TimeoutError, RuntimeError, ValueError, OSError) as exc:
-            LOGGER.error("Telegram polling error: %s", exc)
+            LOGGER.error("Telegram polling error (%s)", type(exc).__name__)
             time.sleep(3)
 
 
@@ -219,14 +240,16 @@ def launch() -> int:
         LOGGER.info("Telegram token not configured; running PAPER console execution")
         while True:
             try:
-                app.run_once()
+                result = app.run_once()
                 if not app.settings.paper_interval_seconds:
+                    if isinstance(result, dict) and result.get("processed") is False and result.get("reason") != "duplicate_frame":
+                        return 1
                     return 0
                 time.sleep(app.settings.paper_interval_seconds)
             except KeyboardInterrupt:
                 return 0
             except (OSError, ValueError, RuntimeError) as exc:
-                LOGGER.error("PAPER cycle stopped: %s", exc)
+                LOGGER.error("PAPER cycle stopped (%s)", type(exc).__name__)
                 if not app.settings.paper_interval_seconds:
                     return 1
                 time.sleep(app.settings.paper_interval_seconds)

@@ -11,6 +11,7 @@ from dataclasses import asdict, dataclass
 from decimal import Decimal
 from hashlib import sha256
 import json
+import math
 from typing import Mapping, Sequence
 
 from aipro.intelligence.domain_regime import (
@@ -57,6 +58,15 @@ class ForecastEvidence:
     uncertainty: float
     model_id: str
     feature_fingerprint: str
+
+    def __post_init__(self) -> None:
+        for value in (self.win_probability, self.expected_gain_pct, self.expected_loss_pct, self.uncertainty):
+            if isinstance(value, bool) or not math.isfinite(value):
+                raise ValueError("forecast values must be finite")
+        if not 0 <= self.win_probability <= 1 or not 0 <= self.uncertainty <= 1:
+            raise ValueError("forecast probability and uncertainty must be in [0, 1]")
+        if self.expected_gain_pct < 0 or self.expected_loss_pct < 0:
+            raise ValueError("forecast gain and loss magnitudes must be non-negative")
 
 
 @dataclass(frozen=True)

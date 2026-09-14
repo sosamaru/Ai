@@ -31,6 +31,8 @@ INTEGRATION_TEST_PATHS = (
     "tests/test_telegram.py",
     "tests/test_v2_concrete_integrations.py",
     "tests/test_us_dual_portfolio.py",
+    "tests/test_us_model_pipeline.py",
+    "tests/test_runtime_audit.py",
 )
 
 
@@ -124,6 +126,37 @@ def _check_pytest(required: bool) -> CheckResult:
     )
 
 
+def _check_us_inputs() -> CheckResult:
+    """Read-only configuration inspection; never connect to a broker."""
+    try:
+        if Settings.from_env().runtime != "US_DUAL":
+            return CheckResult("미국 주식 입력", "OK", "현재 CRYPTO 프로필")
+        from datetime import UTC, datetime
+        from aipro.us_stocks.portfolio_market import FileMarketData, instant
+        path = os.getenv("AIPRO_US_FRAME_PATH", "").strip()
+        if not path:
+            return CheckResult("미국 주식 입력", "FAIL", "AIPRO_US_FRAME_PATH가 없습니다. 시세 입력 공급기가 필요합니다.")
+        frame = FileMarketData(Path(path)).frame()
+        age = (datetime.now(UTC) - instant(frame.as_of_utc)).total_seconds()
+        if not 0 <= age <= 60:
+            return CheckResult("미국 주식 입력", "FAIL", "시장 입력이 오래되었거나 미래 시점입니다.")
+        model_path, pin = os.getenv("AIPRO_US_MODEL_PATH", "").strip(), os.getenv("AIPRO_US_MODEL_SHA256", "").strip()
+        if bool(model_path) != bool(pin):
+            raise ValueError("model path and fingerprint must both be supplied")
+        if model_path:
+            from aipro.us_stocks.model_artifact import ArtifactForecastProvider, load_artifact
+            from aipro.us_stocks.portfolio_policy import PortfolioPolicy
+            artifact = load_artifact(Path(model_path), expected_fingerprint=pin)
+            ArtifactForecastProvider(artifact)
+            now = datetime.now(UTC)
+            if (artifact.payload["policy_fingerprint"] != PortfolioPolicy().fingerprint
+                    or not instant(artifact.payload["validation_end_utc"]) < now <= instant(artifact.payload["expires_at_utc"])):
+                raise ValueError("model policy or validity interval mismatch")
+        return CheckResult("미국 주식 입력", "OK", "현재 프레임 확인; 모델 선택됨" if model_path else "현재 프레임 확인; 미학습 규칙 사용")
+    except (OSError, ValueError, TypeError, KeyError) as exc:
+        return CheckResult("미국 주식 입력", "FAIL", f"입력 또는 모델 설정을 확인하세요 ({type(exc).__name__}).")
+
+
 def doctor(*, require_pytest: bool = False) -> int:
     """Inspect the local runtime and print actionable failure reasons."""
 
@@ -134,6 +167,7 @@ def doctor(*, require_pytest: bool = False) -> int:
         _check_imports(),
         _check_environment(),
         _check_runtime_directories(),
+        _check_us_inputs(),
         _check_pytest(require_pytest),
     )
     for result in checks:
@@ -158,6 +192,8 @@ def _safe_runtime_env(extra: Mapping[str, str] | None = None) -> dict[str, str]:
             "AIPRO_MARKET_DATA_PROVIDER": "DEMO",
             "AIPRO_TELEGRAM_BOT_TOKEN": "",
             "AIPRO_TELEGRAM_ALLOWED_CHAT_IDS": "",
+            "AIPRO_US_MODEL_PATH": "",
+            "AIPRO_US_MODEL_SHA256": "",
         }
     )
     if extra:
@@ -304,17 +340,50 @@ def build_parser() -> argparse.ArgumentParser:
     replay_parser = subparsers.add_parser("portfolio-replay", help="시점별 JSONL 시장 입력을 순서대로 재생합니다.")
     replay_parser.add_argument("input", type=Path)
     replay_parser.add_argument("--output", type=Path, required=True)
+    replay_parser.add_argument("--model", type=Path, help="선택적 JSON 연구 모델")
+    replay_parser.add_argument("--model-sha256", help="선택한 모델의 고정 SHA-256")
+    replay_parser.add_argument("--allow-synthetic-model", action="store_true", help="합성 모델을 합성 재생에만 사용")
+    trainer = subparsers.add_parser("model-train", help="보관된 US 프레임으로 CPU 모델 학습·독립 평가·JSON 저장")
+    trainer.add_argument("input", type=Path)
+    trainer.add_argument("--symbol", required=True)
+    trainer.add_argument("--output-dir", type=Path, required=True)
+    trainer.add_argument("--horizon-seconds", type=int, default=300)
+    inspector = subparsers.add_parser("model-inspect", help="JSON 모델의 출처·검증·적용 범위를 확인")
+    inspector.add_argument("input", type=Path)
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command in {"model-train", "model-inspect"}:
+        try:
+            if args.command == "model-train":
+                from aipro.us_stocks.model_training import train_from_archive
+                return train_from_archive(args.input, symbol=args.symbol, output_dir=args.output_dir,
+                                          horizon_seconds=args.horizon_seconds)
+            import json
+            from aipro.us_stocks.model_artifact import load_artifact
+            artifact = load_artifact(args.input)
+            print(json.dumps({"model_id": artifact.model_id, **{key: artifact.payload[key] for key in
+                ("symbol", "qualified", "synthetic", "blockers", "validation", "training_end_utc",
+                 "validation_end_utc", "expires_at_utc", "paper_only", "live_ready")}}, ensure_ascii=False, indent=2))
+            return 0
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            print(f"[FAIL] model command: {type(exc).__name__}: {exc}")
+            return 1
     if args.command in {"portfolio-demo", "portfolio-replay"}:
         import json
         from aipro.us_stocks.portfolio_replay import load_jsonl, replay, run_demo
         if args.command == "portfolio-demo":
             return run_demo(args.output)
-        report = replay(load_jsonl(args.input))
+        forecaster = None
+        if bool(args.model) != bool(args.model_sha256):
+            raise ValueError("replay model path and pinned SHA-256 must both be provided")
+        if args.model:
+            from aipro.us_stocks.model_artifact import ArtifactForecastProvider, load_artifact
+            forecaster = ArtifactForecastProvider(load_artifact(args.model, expected_fingerprint=args.model_sha256),
+                                                  allow_synthetic=args.allow_synthetic_model)
+        report = replay(load_jsonl(args.input), forecaster=forecaster)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(f"PAPER 재생 보고서: {args.output}; 실제 수익성/실거래 준비 검증 아님")

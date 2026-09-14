@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -16,6 +17,11 @@ class PaperTrainingPolicy:
     require_positive_expectancy: bool = True
 
     def __post_init__(self) -> None:
+        for value in (self.minimum_calendar_days, self.minimum_completed_sessions, self.minimum_orders):
+            if type(value) is not int:
+                raise ValueError("PAPER policy counts must be integers")
+        if type(self.require_positive_expectancy) is not bool:
+            raise ValueError("require_positive_expectancy must be boolean")
         if self.minimum_calendar_days < 30:
             raise ValueError("paper training must run for at least 30 calendar days")
         if self.minimum_completed_sessions < 1 or self.minimum_orders < 1:
@@ -40,9 +46,26 @@ class PaperTrainingEvidence:
     duplicate_order_events: int
     unreconciled_order_events: int
 
+    def __post_init__(self) -> None:
+        times = [datetime.fromisoformat(value) for value in (self.started_at_utc, self.evaluated_at_utc)]
+        if any(value.tzinfo is None for value in times):
+            raise ValueError("PAPER evidence timestamps must be timezone-aware")
+        if times[1] < times[0]:
+            raise ValueError("evaluated_at_utc must not precede started_at_utc")
+        for value in (self.completed_sessions, self.completed_orders, self.stale_data_events,
+                      self.duplicate_order_events, self.unreconciled_order_events):
+            if type(value) is not int or value < 0:
+                raise ValueError("PAPER evidence counts must be non-negative integers")
+        for value in (self.net_return_pct, self.maximum_drawdown_pct,
+                      self.worst_daily_return_pct, self.expectancy_per_trade_pct):
+            if isinstance(value, bool) or not math.isfinite(value):
+                raise ValueError("PAPER evidence metrics must be finite")
+        if not 0 <= self.maximum_drawdown_pct <= 100:
+            raise ValueError("drawdown evidence must be in [0, 100]")
+
     @property
     def fingerprint(self) -> str:
-        payload = json.dumps(asdict(self), sort_keys=True, separators=(",", ":"))
+        payload = json.dumps(asdict(self), sort_keys=True, separators=(",", ":"), allow_nan=False)
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 

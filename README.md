@@ -2,6 +2,30 @@
 
 Safe-by-default multi-asset automated-trading foundation.
 
+## AI runtime audit and model pipeline — 2026-09-14
+
+The latest PR #75 work now includes a bounded CPU logistic-model training,
+final-holdout evaluation, numeric JSON export, and explicitly pinned inference
+path for the US short sleeve. Purging now checks outcome availability at the
+prediction instant, prior embargo rows are excluded from later training, and
+model failures cannot roll back required portfolio exits.
+
+```bash
+python -m aipro model-train data/us_frames.jsonl --symbol AAPL --output-dir data/models/aapl
+python -m aipro model-inspect data/models/aapl/model.json
+```
+
+These commands require the documented historical US-frame input and at least
+600 non-overlapping labeled samples. No validated real-market model is supplied.
+Runtime model selection requires both `AIPRO_US_MODEL_PATH` and
+`AIPRO_US_MODEL_SHA256`; defaults remain the untrained rule baseline.
+Synthetic artifacts are restricted to explicit synthetic replay. This does not
+wire a broker or establish profitability, elapsed PAPER evidence, or LIVE readiness.
+
+See [the Korean audit, model design, commands and remaining work](docs/AI_RUNTIME_AUDIT_20260914.md).
+Historical construction percentages cover their named scopes; the wider service
+and Issue #48 technology requirements remain incomplete.
+
 ## US-stock dual portfolio — 2026-09-12
 
 An executable **local PAPER simulator** now supports the owner's fixed funding plan:

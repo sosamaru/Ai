@@ -1,6 +1,55 @@
 # AiPro Project Roadmap
 
-Updated: 2026-09-12
+Updated: 2026-09-14
+
+## Current audit and model-runtime requirement (2026-09-14)
+
+Owner-authorized scope: inspect the latest project, repair execution connections,
+and add the missing model training/persistence/inference path. Baseline inspected:
+`main` at `6be27da5e8ba64d3f1ae162855b05c06f063c3bb` plus unmerged PR #75 at
+`a282b4a8c40e3d3473d8ecd41861a4a57814e96e`. Work preserves PR #75 and the canonical
+entrypoint. Baseline reproduced locally: **483 tests passed**, Python 3.12.14.
+
+Construction result: **6/6 audit deliverables implemented (100% of this named audit
+scope; 0 remaining within that denominator)**. Verification must remain green on
+the exact submitted revision. This does not complete the wider Issue #48 service.
+
+- [x] Outcome-availability purging, actual prior-embargo exclusion, disjoint test
+  evidence, empty/single-class fitting rejection, and numeric validation.
+- [x] Bounded single-symbol, non-overlapping US markout dataset construction using
+  observable completed bars and executable bid/ask endpoints.
+- [x] Shared real CPU logistic fitting, development-only preprocessing, untouched
+  final holdout, prior/rule comparison, double-cost stress, numeric JSON artifacts.
+- [x] Explicit model path/hash selection in the canonical US runtime, domain/symbol/
+  provenance/policy/time/feature checks, expiry/OOD abstention, and risk-exit preservation.
+- [x] Secret-safe Telegram errors, malformed/duplicate message handling, bounded JSONL
+  reads, missing-input exit codes, US input diagnostics, and polling timeout cap.
+- [x] Regression coverage, code/docs/roadmap manifest linkage, and a Korean audit/runbook.
+
+Local verification: Linux/Python 3.12.14; baseline **483** tests. Final
+`python -m aipro all` passed diagnosis, compilation, canonical PAPER smoke,
+**121 integration tests and 534 warning-free regression tests** (51 additional
+regression cases). Synthetic portfolio replay: 4 frames, 3 virtual fills, 0 blocked
+frames; not market-performance evidence. Source inventory:
+95 package Python files, 94 non-entrypoint modules imported, **0 import failures**,
+172 local import relationships. Real optional boosting/deep-learning packages were
+not installed or executed. Remote Python 3.11–3.13 CI is a required gate for the
+updated PR #75 revision and must be inspected before merge.
+
+| Scope | Verified completion | Why incomplete / next work |
+|---|---|---|
+| Named audit construction | 6/6, 100% | Full local/remote validation remains a gate for the submitted revision |
+| Real-market fitted models validated for US_DUAL | 0 candidates | No point-in-time historical dataset supplied |
+| Actual qualifying PAPER duration established in this audit | 0/30 calendar days | No actual account evidence supplied; synthetic tests excluded |
+| Broker/account/corporate-action integration for US_DUAL | Incomplete | Provider and account contracts, USD reconciliation, dividends/splits/taxes required |
+| Wider modern research/portfolio requirements | Incomplete | CPCV, multiple testing, centralized holdout reuse controls, richer portfolio stress and optional families remain |
+| LIVE service | Not ready; no honest aggregate percentage | Remaining software, actual data/account evidence and independent review required |
+
+The full audit, file map, model-family assessment, run commands, explicit deferred
+items, evidence limitations and priorities are in `docs/AI_RUNTIME_AUDIT_20260914.md`.
+Primary next steps: connect the actual US broker/data contract and corporate-action
+accounting, validate rules and fitted models on independent real data, and collect
+qualifying PAPER evidence. Additional external owner funding remains prohibited.
 
 ## Current owner requirement — US dual portfolio
 

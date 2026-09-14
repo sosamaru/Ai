@@ -41,15 +41,18 @@ class TrainingRow:
     realized_return_bps: float
 
     def __post_init__(self) -> None:
-        if self.index < 0:
+        if type(self.index) is not int or self.index < 0:
             raise ValueError("index must be non-negative")
-        if self.label_start < 0 or self.label_end < self.label_start:
+        if (type(self.label_start) is not int or type(self.label_end) is not int
+                or self.label_start < self.index or self.label_end < self.label_start):
             raise ValueError("invalid label window")
+        if not isinstance(self.domain, ModelDomain):
+            raise ValueError("a ModelDomain is required")
         if not self.features:
             raise ValueError("features cannot be empty")
         if any(not math.isfinite(value) for value in self.features):
             raise ValueError("features must be finite")
-        if self.target not in (0, 1):
+        if type(self.target) is not int or self.target not in (0, 1):
             raise ValueError("target must be binary")
         if not math.isfinite(self.realized_return_bps):
             raise ValueError("realized_return_bps must be finite")
@@ -64,9 +67,12 @@ class LogisticTrainingConfig:
     estimated_round_trip_cost_bps: float = 5.0
 
     def __post_init__(self) -> None:
+        if any(not math.isfinite(value) for value in (self.learning_rate, self.l2_penalty,
+                self.decision_threshold, self.estimated_round_trip_cost_bps)):
+            raise ValueError("training settings must be finite")
         if not 0.0 < self.learning_rate <= 1.0:
             raise ValueError("learning_rate must be in (0, 1]")
-        if not 1 <= self.epochs <= 5000:
+        if type(self.epochs) is not int or not 1 <= self.epochs <= 5000:
             raise ValueError("epochs must be in [1, 5000]")
         if not 0.0 <= self.l2_penalty <= 1.0:
             raise ValueError("l2_penalty must be in [0, 1]")
@@ -74,6 +80,55 @@ class LogisticTrainingConfig:
             raise ValueError("decision_threshold must be in (0, 1)")
         if self.estimated_round_trip_cost_bps < 0.0:
             raise ValueError("estimated_round_trip_cost_bps must be non-negative")
+
+
+@dataclass(frozen=True)
+class FittedLogisticModel:
+    """Numeric-only parameters shared by fold evaluation and JSON inference."""
+
+    weights: tuple[float, ...]
+    bias: float
+    means: tuple[float, ...]
+    scales: tuple[float, ...]
+
+    def __post_init__(self) -> None:
+        if not 1 <= len(self.weights) <= 256 or not len(self.weights) == len(self.means) == len(self.scales):
+            raise ValueError("invalid model dimensions")
+        if any(isinstance(v, bool) or not math.isfinite(v)
+               for v in (*self.weights, self.bias, *self.means, *self.scales)):
+            raise ValueError("model parameters must be finite numbers")
+        if any(v <= 0 for v in self.scales):
+            raise ValueError("model scales must be positive")
+
+    def standardized(self, values: Sequence[float]) -> tuple[float, ...]:
+        if len(values) != len(self.weights) or any(not math.isfinite(v) for v in values):
+            raise ValueError("invalid inference features")
+        result = _scale(values, self.means, self.scales)
+        if any(not math.isfinite(v) for v in result):
+            raise ValueError("non-finite standardized features")
+        return result
+
+    def predict(self, values: Sequence[float]) -> float:
+        logit = _dot(self.weights, self.standardized(values)) + self.bias
+        if not math.isfinite(logit):
+            raise ValueError("non-finite model output")
+        return _sigmoid(logit)
+
+
+def fit_logistic_model(rows: Sequence[TrainingRow], config: LogisticTrainingConfig) -> FittedLogisticModel:
+    if not rows or len(rows) > 20_000:
+        raise ValueError("training requires 1 to 20,000 rows")
+    if len({row.domain for row in rows}) != 1 or {row.target for row in rows} != {0, 1}:
+        raise ValueError("training requires one domain and both target classes in each fold")
+    width = len(rows[0].features)
+    if width > 256 or any(len(row.features) != width for row in rows):
+        raise ValueError("invalid training dimensions")
+    if len(rows) * width * config.epochs > 100_000_000:
+        raise ValueError("training operation budget exceeded")
+    means, scales = _fit_scaler(rows)
+    vectors = tuple(_scale(row.features, means, scales) for row in rows)
+    weights, bias = _fit_logistic(vectors, tuple(row.target for row in rows), config)
+    return FittedLogisticModel(weights, bias, means, scales)
 
 
 @dataclass(frozen=True)
@@ -121,6 +176,8 @@ def run_purged_logistic_training(
         for row in ordered
     )
     folds = splitter.split(observations)
+    if sum(len(fold.train_indices) for fold in folds) * len(feature_names) * training.epochs > 100_000_000:
+        raise ValueError("cross-validation operation budget exceeded")
     by_index = {row.index: row for row in ordered}
     evidence: list[PurgedFoldTrainingEvidence] = []
     metrics: list[FoldMetrics] = []
@@ -129,14 +186,11 @@ def run_purged_logistic_training(
         assert_no_leakage(fold, observations)
         train_rows = tuple(by_index[index] for index in fold.train_indices)
         test_rows = tuple(by_index[index] for index in fold.test_indices)
-        means, scales = _fit_scaler(train_rows)
-        x_train = tuple(_scale(row.features, means, scales) for row in train_rows)
-        x_test = tuple(_scale(row.features, means, scales) for row in test_rows)
-        weights, bias = _fit_logistic(x_train, tuple(row.target for row in train_rows), training)
-        probabilities = tuple(_sigmoid(_dot(weights, vector) + bias) for vector in x_test)
+        model = fit_logistic_model(train_rows, training)
+        probabilities = tuple(model.predict(row.features) for row in test_rows)
         fold_metrics = _score_fold(test_rows, probabilities, training)
         metrics.append(fold_metrics)
-        model_fingerprint = _model_fingerprint(weights, bias, means, scales, training)
+        model_fingerprint = _model_fingerprint(model.weights, model.bias, model.means, model.scales, training)
         evidence.append(
             PurgedFoldTrainingEvidence(
                 fold_fingerprint=fold.fingerprint,
@@ -192,6 +246,8 @@ def run_purged_logistic_training(
 def _validate_rows(rows: Sequence[TrainingRow], feature_names: Sequence[str]) -> tuple[TrainingRow, ...]:
     if not rows:
         raise ValueError("rows cannot be empty")
+    if len(rows) > 20_000 or len(feature_names) > 256:
+        raise ValueError("training resource budget exceeded")
     names = tuple(feature_names)
     if not names or len(names) != len(set(names)):
         raise ValueError("feature_names must be non-empty and unique")
@@ -251,6 +307,8 @@ def _score_fold(
     probabilities: Sequence[float],
     config: LogisticTrainingConfig,
 ) -> FoldMetrics:
+    if not rows or len(rows) != len(probabilities) or any(not math.isfinite(p) or not 0 <= p <= 1 for p in probabilities):
+        raise ValueError("one finite probability in [0, 1] is required per test row")
     predictions = tuple(probability >= config.decision_threshold for probability in probabilities)
     positives = [index for index, row in enumerate(rows) if row.target == 1]
     negatives = [index for index, row in enumerate(rows) if row.target == 0]

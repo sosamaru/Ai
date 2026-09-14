@@ -132,6 +132,15 @@ class MarketFrame:
 
     @classmethod
     def from_dict(cls, payload: dict) -> "MarketFrame":
+        try:
+            return cls._parse_dict(payload)
+        except (KeyError, TypeError, AttributeError, OverflowError, RecursionError):
+            raise ValueError("malformed market-frame structure") from None
+
+    @classmethod
+    def _parse_dict(cls, payload: dict) -> "MarketFrame":
+        if not isinstance(payload, dict) or not isinstance(payload.get("quotes"), list):
+            raise ValueError("market frame must be an object with a quote list")
         values = dict(payload)
         quotes = []
         for raw in values.pop("quotes"):
@@ -162,7 +171,10 @@ class FileMarketData:
             raw = handle.read(8_000_001)
         if len(raw) > 8_000_000:
             raise ValueError("market frame exceeds 8 MB")
-        return MarketFrame.from_dict(json.loads(raw))
+        try:
+            return MarketFrame.from_dict(json.loads(raw))
+        except RecursionError:
+            raise ValueError("market frame nesting exceeds supported depth") from None
 
 
 def intelligence_from_components(*, symbol: str, as_of_utc: datetime,
