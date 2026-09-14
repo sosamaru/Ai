@@ -33,12 +33,16 @@ regression cases). Synthetic portfolio replay: 4 frames, 3 virtual fills, 0 bloc
 frames; not market-performance evidence. Source inventory:
 95 package Python files, 94 non-entrypoint modules imported, **0 import failures**,
 172 local import relationships. Real optional boosting/deep-learning packages were
-not installed or executed. Remote Python 3.11–3.13 CI is a required gate for the
-updated PR #75 revision and must be inspected before merge.
+not installed or executed. Remote Python 3.11–3.13 CI **passed every stage** on
+implementation commit `ed050678365f06b8d305c5ec045d0fd0bcd4f2a5`:
+[Actions run #247](https://github.com/sosamaru/Ai/actions/runs/34837903368).
+All three matrix jobs passed diagnosis, compilation, canonical PAPER execution,
+explicit integration, and full tests. Subsequent documentation commits remain
+subject to the same CI gate before merge; no main-branch merge was performed.
 
 | Scope | Verified completion | Why incomplete / next work |
 |---|---|---|
-| Named audit construction | 6/6, 100% | Full local/remote validation remains a gate for the submitted revision |
+| Named audit construction | 6/6, 100% | Local validation and implementation CI passed; subsequent revisions retain the same gate |
 | Real-market fitted models validated for US_DUAL | 0 candidates | No point-in-time historical dataset supplied |
 | Actual qualifying PAPER duration established in this audit | 0/30 calendar days | No actual account evidence supplied; synthetic tests excluded |
 | Broker/account/corporate-action integration for US_DUAL | Incomplete | Provider and account contracts, USD reconciliation, dividends/splits/taxes required |
