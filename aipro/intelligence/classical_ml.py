@@ -65,7 +65,8 @@ class FoldMetrics:
                 raise ValueError("classification metrics must be in [0, 1]")
         if not 0.0 <= self.brier_score <= 1.0:
             raise ValueError("brier_score must be in [0, 1]")
-        if self.turnover < 0.0 or self.sample_count <= 0:
+        if (not math.isfinite(self.turnover) or self.turnover < 0.0
+                or type(self.sample_count) is not int or self.sample_count <= 0):
             raise ValueError("turnover must be non-negative and sample_count positive")
         if not math.isfinite(self.expected_value_bps):
             raise ValueError("expected_value_bps must be finite")
@@ -80,6 +81,18 @@ class EvaluationPolicy:
     min_expected_value_bps: float = 0.0
     max_metric_std: float = 0.08
     uncertainty_penalty: float = 1.0
+
+    def __post_init__(self) -> None:
+        if type(self.min_folds) is not int or type(self.min_samples) is not int or min(self.min_folds, self.min_samples) < 1:
+            raise ValueError("evaluation evidence counts must be positive integers")
+        for value in (self.min_balanced_accuracy, self.max_brier_score, self.min_expected_value_bps,
+                      self.max_metric_std, self.uncertainty_penalty):
+            if isinstance(value, bool) or not math.isfinite(value):
+                raise ValueError("evaluation thresholds must be finite")
+        if not 0 <= self.min_balanced_accuracy <= 1 or not 0 <= self.max_brier_score <= 1:
+            raise ValueError("invalid evaluation probability metric threshold")
+        if self.max_metric_std < 0 or self.uncertainty_penalty < 0:
+            raise ValueError("negative uncertainty thresholds are not allowed")
 
 
 @dataclass(frozen=True)

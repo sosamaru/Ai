@@ -27,6 +27,8 @@ def _parse_symbols(raw: str) -> tuple[str, ...]:
 @dataclass(frozen=True, slots=True)
 class Settings:
     mode: str = "PAPER"
+    runtime: str = "CRYPTO"
+    paper_interval_seconds: int = 0
     initial_cash_krw: int = 1_000_000
     max_positions: int = 2
     max_position_pct: float = 0.40
@@ -52,6 +54,8 @@ class Settings:
     def from_env(cls) -> "Settings":
         settings = cls(
             mode=os.getenv("AIPRO_MODE", "PAPER").upper(),
+            runtime=os.getenv("AIPRO_RUNTIME", "CRYPTO").upper(),
+            paper_interval_seconds=int(os.getenv("AIPRO_PAPER_INTERVAL_SECONDS", "0")),
             initial_cash_krw=int(os.getenv("AIPRO_INITIAL_CASH_KRW", "1000000")),
             max_positions=int(os.getenv("AIPRO_MAX_POSITIONS", "2")),
             max_position_pct=float(os.getenv("AIPRO_MAX_POSITION_PCT", "0.40")),
@@ -77,6 +81,14 @@ class Settings:
         return settings
 
     def validate(self) -> None:
+        if self.runtime not in {"CRYPTO", "US_DUAL"}:
+            raise ValueError("AIPRO_RUNTIME must be CRYPTO or US_DUAL")
+        if self.runtime == "US_DUAL" and (self.mode != "PAPER" or self.initial_cash_krw != 1_000_000):
+            raise ValueError("US_DUAL requires PAPER mode and exactly KRW 1,000,000 initial funding")
+        if type(self.paper_interval_seconds) is not int or not 0 <= self.paper_interval_seconds <= 60:
+            raise ValueError("AIPRO_PAPER_INTERVAL_SECONDS must be between 0 and 60")
+        if self.paper_interval_seconds and (self.runtime != "US_DUAL" or self.mode != "PAPER"):
+            raise ValueError("continuous PAPER execution requires the US_DUAL PAPER profile")
         if self.mode not in {"PAPER", "LIVE"}:
             raise ValueError("AIPRO_MODE must be PAPER or LIVE")
         if self.initial_cash_krw <= 0:

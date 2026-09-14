@@ -35,11 +35,15 @@ class WalkForwardConfig:
 
     def validate(self) -> None:
         for name in ("min_train_size", "test_size", "step_size"):
-            if getattr(self, name) <= 0:
+            if type(getattr(self, name)) is not int or getattr(self, name) <= 0:
                 raise ValueError(f"{name} must be positive")
-        if self.embargo_size < 0:
+        if type(self.embargo_size) is not int or self.embargo_size < 0:
             raise ValueError("embargo_size must be non-negative")
-        if self.max_train_size is not None and self.max_train_size < self.min_train_size:
+        if self.step_size < self.test_size:
+            raise ValueError("step_size must be at least test_size; test evidence cannot be counted twice")
+        if type(self.expanding) is not bool:
+            raise ValueError("expanding must be boolean")
+        if self.max_train_size is not None and (type(self.max_train_size) is not int or self.max_train_size < self.min_train_size):
             raise ValueError("max_train_size cannot be smaller than min_train_size")
 
 
@@ -62,8 +66,14 @@ class PurgedWalkForwardSplitter:
         domain = next(iter(domains))
         if any(item.label_end < item.label_start for item in ordered):
             raise ValueError("label_end cannot precede label_start")
+        if any(type(value) is not int or value < 0 for item in ordered
+               for value in (item.index, item.label_start, item.label_end)):
+            raise ValueError("indices and label times must be non-negative integers")
+        if any(item.label_start < item.index for item in ordered):
+            raise ValueError("label_start cannot precede prediction index")
 
         folds: list[Fold] = []
+        prior_embargo: set[int] = set()
         test_start = self.config.min_train_size
         while test_start + self.config.test_size <= len(ordered):
             test_stop = test_start + self.config.test_size
@@ -79,15 +89,19 @@ class PurgedWalkForwardSplitter:
             train: list[int] = []
             purged: list[int] = []
             for item in raw_train:
+                # Every training outcome must already be known at prediction time,
+                # including when the test label starts after its feature timestamp.
+                unavailable = item.label_end >= test[0].index
                 overlaps = item.label_start <= test_label_end and item.label_end >= test_label_start
-                if overlaps:
+                if unavailable or overlaps:
                     purged.append(item.index)
-                else:
+                elif item.index not in prior_embargo:
                     train.append(item.index)
 
             embargo_stop = min(len(ordered), test_stop + self.config.embargo_size)
             embargoed = tuple(item.index for item in ordered[test_stop:embargo_stop])
-            if len(train) < self.config.min_train_size - len(purged):
+            excluded_by_prior_embargo = tuple(item.index for item in raw_train if item.index in prior_embargo)
+            if not train:
                 raise ValueError("purging leaves insufficient training evidence")
 
             payload = {
@@ -96,6 +110,8 @@ class PurgedWalkForwardSplitter:
                 "test": [item.index for item in test],
                 "purged": purged,
                 "embargoed": embargoed,
+                "prior_embargo_excluded": excluded_by_prior_embargo,
+                "validation_schema": 2,
             }
             fingerprint = sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
             folds.append(
@@ -108,6 +124,7 @@ class PurgedWalkForwardSplitter:
                     fingerprint=fingerprint,
                 )
             )
+            prior_embargo.update(embargoed)
             test_start += self.config.step_size
 
         if not folds:
@@ -120,7 +137,9 @@ def assert_no_leakage(fold: Fold, observations: Iterable[Observation]) -> None:
     test = [by_index[index] for index in fold.test_indices]
     test_start = min(item.label_start for item in test)
     test_end = max(item.label_end for item in test)
+    prediction_time = min(item.index for item in test)
     for index in fold.train_indices:
         item = by_index[index]
-        if item.label_start <= test_end and item.label_end >= test_start:
+        if (item.index >= prediction_time or item.label_end >= prediction_time
+                or item.label_start <= test_end and item.label_end >= test_start):
             raise AssertionError(f"leakage detected at observation {index}")

@@ -12,6 +12,7 @@ from aipro.intelligence.features import PaperIntelligenceSnapshot
 from aipro.intelligence.macro import MacroRegime, MacroSnapshot
 from aipro.intelligence.market_features import MarketFeatureSnapshot
 from aipro.intelligence.sec_edgar import FilingEventType, FilingSnapshot, SecFilingEvent
+from aipro.us_stocks.portfolio_market import intelligence_from_components
 
 NOW = datetime(2026, 7, 23, 10, 0, tzinfo=UTC)
 
@@ -114,6 +115,34 @@ def test_builds_stable_versioned_vector() -> None:
     assert first.eligible is True
     assert first.fingerprint == second.fingerprint
     assert first.as_mapping()["filing_material_event_count"] == 1.0
+
+
+def test_us_portfolio_bridge_preserves_combined_lineage_and_provider_sentiment():
+    info = intelligence_from_components(symbol="AAPL", as_of_utc=NOW,
+        news=_news(), macro=_macro(), filings=_filings(), market=_market())
+    assert info is not None
+    assert info.feature_fingerprint == _build().fingerprint
+    assert info.news_sentiment == 0.2
+    assert not info.macro_risk_off
+    assert not info.material_risk  # An 8-K is not automatically bad news.
+
+
+def test_us_portfolio_bridge_rejects_missing_or_future_evidence():
+    from dataclasses import replace
+    payload = dict(symbol="AAPL", as_of_utc=NOW, news=_news(), macro=_macro(), filings=_filings(), market=_market())
+    assert intelligence_from_components(**{**payload, "macro": _macro(eligible=False)}) is None
+    future_news = replace(_news(), freshest_article_at_utc=(NOW + timedelta(minutes=1)).isoformat())
+    assert intelligence_from_components(**{**payload, "news": future_news}) is None
+    assert intelligence_from_components(**{**payload, "as_of_utc": NOW + timedelta(minutes=6)}) is None
+
+
+def test_us_portfolio_bridge_vetoes_securities_offerings():
+    from dataclasses import replace
+    filings = _filings()
+    offering = replace(filings.events[0], event_type=FilingEventType.SECURITIES_OFFERING)
+    info = intelligence_from_components(symbol="AAPL", as_of_utc=NOW,
+        news=_news(), macro=_macro(), filings=replace(filings, events=(offering,)), market=_market())
+    assert info is not None and info.material_risk
 
 
 def test_fails_closed_when_required_component_is_ineligible() -> None:
