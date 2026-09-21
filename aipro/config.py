@@ -32,8 +32,11 @@ class Settings:
     initial_cash_krw: int = 1_000_000
     max_positions: int = 2
     max_position_pct: float = 0.40
+    max_symbol_exposure_pct: float = 0.80
+    max_portfolio_exposure_pct: float = 0.95
     daily_loss_limit_pct: float = -10.0
     min_order_krw: int = 5_000
+    max_order_krw: int = 400_000
     db_path: Path = Path("data/aipro.db")
     log_dir: Path = Path("logs")
     log_level: str = "INFO"
@@ -59,8 +62,11 @@ class Settings:
             initial_cash_krw=int(os.getenv("AIPRO_INITIAL_CASH_KRW", "1000000")),
             max_positions=int(os.getenv("AIPRO_MAX_POSITIONS", "2")),
             max_position_pct=float(os.getenv("AIPRO_MAX_POSITION_PCT", "0.40")),
+            max_symbol_exposure_pct=float(os.getenv("AIPRO_MAX_SYMBOL_EXPOSURE_PCT", "0.80")),
+            max_portfolio_exposure_pct=float(os.getenv("AIPRO_MAX_PORTFOLIO_EXPOSURE_PCT", "0.95")),
             daily_loss_limit_pct=float(os.getenv("AIPRO_DAILY_LOSS_LIMIT_PCT", "-10.0")),
             min_order_krw=int(os.getenv("AIPRO_MIN_ORDER_KRW", "5000")),
+            max_order_krw=int(os.getenv("MAX_ORDER_KRW", "400000")),
             db_path=Path(os.getenv("AIPRO_DB_PATH", "data/aipro.db")),
             log_dir=Path(os.getenv("AIPRO_LOG_DIR", "logs")),
             log_level=os.getenv("AIPRO_LOG_LEVEL", "INFO").upper(),
@@ -97,10 +103,16 @@ class Settings:
             raise ValueError("max_positions must be at least 1")
         if not math.isfinite(self.max_position_pct) or not 0 < self.max_position_pct <= 1:
             raise ValueError("max_position_pct must be finite and in (0, 1]")
+        if not all(math.isfinite(v) and 0 < v <= 1 for v in (self.max_symbol_exposure_pct, self.max_portfolio_exposure_pct)):
+            raise ValueError("aggregate exposure limits must be finite and in (0, 1]")
+        if self.max_symbol_exposure_pct > self.max_portfolio_exposure_pct:
+            raise ValueError("symbol exposure cannot exceed portfolio exposure")
         if not math.isfinite(self.daily_loss_limit_pct) or self.daily_loss_limit_pct >= 0:
             raise ValueError("daily_loss_limit_pct must be finite and negative")
         if self.min_order_krw <= 0:
             raise ValueError("min_order_krw must be positive")
+        if type(self.max_order_krw) is not int or self.max_order_krw < self.min_order_krw:
+            raise ValueError("MAX_ORDER_KRW must be an integer at least min_order_krw")
         if self.min_order_krw > self.initial_cash_krw:
             raise ValueError("min_order_krw must not exceed initial_cash_krw")
         if self.log_level not in {"CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"}:

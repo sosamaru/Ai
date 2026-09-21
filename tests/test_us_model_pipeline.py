@@ -139,7 +139,9 @@ def test_forecast_reuses_fitted_scaler_and_enters_only_through_existing_gates(tm
     values, fp = model_features(frame.quotes[0], START)
     forecast = provider.forecast_frame(frame.quotes[0], frame, PortfolioPolicy(), fp)
     assert forecast is not None
-    assert forecast.win_probability == trained.artifact.model.predict(values)
+    from aipro.intelligence.calibration import Calibrator
+    assert forecast.win_probability == Calibrator(**trained.artifact.payload["calibrator"]).predict(trained.artifact.model.predict(values))
+    assert forecast.probability_calibrated
     app = TradingApplication(Settings(), db_path=tmp_path / "us.db", forecaster=provider, clock=lambda: START)
     result = app.process_frame(frame)
     assert any(d.get("model_id") == provider.model_id for d in result["decisions"])
@@ -158,7 +160,7 @@ def test_model_abstains_on_invalid_scope_or_time(trained, case, reason):
     if case == "future":
         frame = demo_frame(START - timedelta(minutes=20))
     if case == "expired":
-        frame = demo_frame(START + timedelta(days=8))
+        frame = demo_frame(START + timedelta(days=91))
     if case == "provenance":
         frame = replace(frame, synthetic=False)
     if case == "policy":

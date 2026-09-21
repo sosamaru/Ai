@@ -32,17 +32,13 @@ def test_sell_all_is_persisted(tmp_path: Path) -> None:
     assert restored.positions == {}
 
 
-def test_corrupted_account_state_fails_closed_to_initial_cash(tmp_path: Path) -> None:
+def test_corrupted_account_state_blocks_without_refunding(tmp_path: Path) -> None:
     storage = Storage(tmp_path / "aipro.db")
     storage.set_state(PAPER_ACCOUNT_STATE_KEY, '{"cash_krw":-1,"positions":{}}')
 
-    restored = PaperBroker.restore(100_000, storage)
-
-    assert restored.cash_krw == pytest.approx(100_000)
-    assert restored.positions == {}
-    persisted = storage.get_state(PAPER_ACCOUNT_STATE_KEY)
-    assert persisted is not None
-    assert '"cash_krw":100000.0' in persisted
+    with pytest.raises(RuntimeError, match="corrupt paper account"):
+        PaperBroker.restore(100_000, storage)
+    assert storage.get_state(PAPER_ACCOUNT_STATE_KEY) == '{"cash_krw":-1,"positions":{}}'
 
 
 def test_invalid_trade_does_not_change_persisted_state(tmp_path: Path) -> None:

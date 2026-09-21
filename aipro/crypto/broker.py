@@ -42,11 +42,17 @@ class PaperBroker:
     positions: dict[str, Position] = field(default_factory=dict)
     orders: dict[str, OrderRecord] = field(default_factory=dict)
     storage: StateStore | None = field(default=None, repr=False)
+    _persisted: str | None = field(default=None, repr=False)
+    _failed: bool = field(default=False, repr=False)
 
     @classmethod
     def restore(cls, initial_cash_krw: float, storage: StateStore) -> PaperBroker:
+        if isinstance(initial_cash_krw, bool) or not math.isfinite(initial_cash_krw) or initial_cash_krw <= 0:
+            raise ValueError("initial funding must be finite and positive")
         raw = storage.get_state(PAPER_ACCOUNT_STATE_KEY)
         if raw is None:
+            if getattr(storage, "has_paper_history", lambda: False)():
+                raise RuntimeError("paper account missing from existing history; refusing to refund")
             broker = cls(float(initial_cash_krw), storage=storage)
             broker._persist("paper_account_initialized")
             return broker
@@ -73,21 +79,20 @@ class PaperBroker:
                 for order_id, values in raw_orders.items()
             }
             cls._validate_account(cash_krw, positions, orders)
-        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
-            LOGGER.error("Invalid persisted paper account; restoring initial cash: %s", exc)
+        except (KeyError, TypeError, ValueError, OverflowError) as exc:
+            LOGGER.error("Corrupt paper account; startup blocked: %s", type(exc).__name__)
             storage.record(
-                "paper_account_recovery",
-                json.dumps({"reason": str(exc)}, sort_keys=True),
+                "paper_account_recovery_blocked",
+                json.dumps({"error_type": type(exc).__name__}, sort_keys=True),
             )
-            broker = cls(float(initial_cash_krw), storage=storage)
-            broker._persist("paper_account_reinitialized")
-            return broker
+            raise RuntimeError("corrupt paper account; preserve state and reconcile before recovery") from None
 
         return cls(
             cash_krw=cash_krw,
             positions=positions,
             orders=orders,
             storage=storage,
+            _persisted=raw,
         )
 
     @staticmethod
@@ -148,6 +153,7 @@ class PaperBroker:
                 raise ValueError(f"invalid order amount for {order_id}")
 
     def _serialize(self) -> str:
+        self._validate_account(self.cash_krw, self.positions, self.orders)
         return json.dumps(
             {
                 "cash_krw": self.cash_krw,
@@ -165,13 +171,29 @@ class PaperBroker:
             },
             sort_keys=True,
             separators=(",", ":"),
+            allow_nan=False,
         )
 
     def _persist(self, event_type: str, **details: object) -> None:
         if self.storage is None:
             return
-        self.storage.set_state(PAPER_ACCOUNT_STATE_KEY, self._serialize())
-        self.storage.record(event_type, json.dumps(details, sort_keys=True))
+        try:
+            raw = self._serialize()
+            payload = json.dumps(details, sort_keys=True, allow_nan=False)
+            writer = getattr(self.storage, "commit_paper_account", None)
+            if writer is not None:
+                writer(self._persisted, raw, event_type, payload)
+            else:
+                self.storage.set_state(PAPER_ACCOUNT_STATE_KEY, raw)
+                self.storage.record(event_type, payload)
+            self._persisted = raw
+        except Exception:
+            self._failed = True
+            raise
+
+    def _assert_usable(self) -> None:
+        if self._failed:
+            raise RuntimeError("paper persistence failed; restart and reconcile before further orders")
 
     @staticmethod
     def _normalize_order_id(client_order_id: str) -> str:
@@ -259,6 +281,7 @@ class PaperBroker:
         price: float,
         amount_krw: int,
     ) -> OrderRecord:
+        self._assert_usable()
         order_id = self._normalize_order_id(client_order_id)
         existing = self.get_order(order_id)
         if existing is not None:
@@ -267,7 +290,7 @@ class PaperBroker:
             raise ValueError("symbol is required")
         if not math.isfinite(price) or price <= 0:
             raise ValueError("price must be positive")
-        if amount_krw <= 0 or amount_krw > self.cash_krw:
+        if isinstance(amount_krw, bool) or not math.isfinite(amount_krw) or amount_krw <= 0 or amount_krw > self.cash_krw:
             raise ValueError("invalid buy amount")
 
         quantity = amount_krw / price
@@ -307,6 +330,7 @@ class PaperBroker:
         symbol: str,
         price: float,
     ) -> OrderRecord:
+        self._assert_usable()
         order_id = self._normalize_order_id(client_order_id)
         existing = self.get_order(order_id)
         if existing is not None:
@@ -361,6 +385,11 @@ class PaperBroker:
         return order.amount_krw
 
     def equity(self, prices: dict[str, float]) -> float:
+        self._assert_usable()
+        self._validate_account(self.cash_krw, self.positions, self.orders)
+        for value in prices.values():
+            if isinstance(value, bool) or not math.isfinite(value) or value <= 0:
+                raise ValueError("valuation prices must be finite and positive")
         return self.cash_krw + sum(
             pos.quantity * prices.get(symbol, pos.average_price)
             for symbol, pos in self.positions.items()

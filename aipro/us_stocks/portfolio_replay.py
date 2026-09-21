@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 import tempfile
 from typing import Iterable
+from zoneinfo import ZoneInfo
 
 from aipro.config import Settings
 from aipro.intelligence.market_features import MarketBar
@@ -22,8 +23,9 @@ D = Decimal
 def demo_frame(at: datetime | None = None, *, short_price: str = "10.46", long_price: str = "25") -> MarketFrame:
     """Invented symbols/prices and neutral intelligence for software verification."""
     at = at or datetime(2026, 9, 14, 14, 30, tzinfo=UTC)
-    opened = at.replace(hour=13, minute=30, second=0, microsecond=0)
-    closed = at.replace(hour=20, minute=0, second=0, microsecond=0)
+    local = at.astimezone(ZoneInfo("America/New_York"))
+    opened = local.replace(hour=9, minute=30, second=0, microsecond=0).astimezone(UTC)
+    closed = local.replace(hour=16, minute=0, second=0, microsecond=0).astimezone(UTC)
     bars = []
     for index in range(30):
         price = 10 + index * 0.015
@@ -59,14 +61,15 @@ def demo_frames() -> tuple[MarketFrame, ...]:
 
 def replay(frames: Iterable[MarketFrame], *, policy: PortfolioPolicy | None = None, forecaster=None) -> dict:
     """Isolated event-time run; validation failures never disappear from results."""
-    count, blocked, fills, fingerprints = 0, [], [], []
+    count, blocked, fills, fingerprints, cycles = 0, [], [], [], []
     previous = None
     current = [datetime.now(UTC)]
     peaks = dict(INITIAL_ALLOCATIONS)
     drawdowns = {name: D(0) for name in INITIAL_ALLOCATIONS}
     synthetic = False
     with tempfile.TemporaryDirectory(prefix="aipro-us-replay-") as temp:
-        app = TradingApplication(Settings(), policy=policy, db_path=Path(temp) / "portfolio.db", clock=lambda: current[0], forecaster=forecaster)
+        app = TradingApplication(Settings(), policy=policy, db_path=Path(temp) / "portfolio.db", clock=lambda: current[0], forecaster=forecaster,
+                                 use_environment_models=False)
         for frame in frames:
             count += 1
             if count > 100000:
@@ -82,6 +85,7 @@ def replay(frames: Iterable[MarketFrame], *, policy: PortfolioPolicy | None = No
                 blocked.append({"frame": count, "reason": result["reason"]})
                 continue
             fills.extend(result["fills"])
+            cycles.append(result)
             for name, book in result["status"]["sleeves"].items():
                 equity = D(book["equity_krw"])
                 peaks[name] = max(peaks[name], equity)
@@ -89,6 +93,7 @@ def replay(frames: Iterable[MarketFrame], *, policy: PortfolioPolicy | None = No
         if count == 0:
             raise ValueError("replay needs at least one frame")
         status = app.status()
+        from aipro.us_stocks.performance_reporting import reports_from_cycles
         return {
             "schema": "us-dual-replay-v1", "paper_only": True, "live_ready": False,
             "qualifies_as_elapsed_paper_evidence": False,
@@ -98,6 +103,7 @@ def replay(frames: Iterable[MarketFrame], *, policy: PortfolioPolicy | None = No
             "model_id": getattr(app.forecaster, "model_id", "custom-forecast" if app.forecaster else "untrained-rule-baseline"),
             "maximum_observed_drawdown_pct": {name: str(value * 100) for name, value in drawdowns.items()},
             "final_status": status,
+            "performance": reports_from_cycles(cycles) if cycles else {},
             "limitations": ["Event replay is not broker PAPER validation or proof of profitability.",
                 "No fitted model is enabled by default; baseline strategies are untrained rules.",
                 "KRW cash with per-trade FX conversion is a virtual cost model, not a real USD brokerage ledger.",

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+import math
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Callable, Protocol
@@ -23,9 +24,9 @@ class MarketDataHealthPolicy:
     max_consecutive_failures: int = 3
 
     def __post_init__(self) -> None:
-        if self.max_latency_sec <= 0:
+        if not math.isfinite(self.max_latency_sec) or self.max_latency_sec <= 0:
             raise ValueError("max_latency_sec must be positive")
-        if self.max_snapshot_age_sec <= 0:
+        if not math.isfinite(self.max_snapshot_age_sec) or self.max_snapshot_age_sec <= 0:
             raise ValueError("max_snapshot_age_sec must be positive")
         if self.max_consecutive_failures < 1:
             raise ValueError("max_consecutive_failures must be at least 1")
@@ -50,17 +51,28 @@ class HealthCheckedMarketData:
         try:
             snapshots = self.delegate.snapshots()
             latency = self.monotonic() - started
-            if latency < 0 or latency > self.policy.max_latency_sec:
+            if not math.isfinite(latency) or latency < 0 or latency > self.policy.max_latency_sec:
                 raise MarketDataHealthError(
                     f"market data latency exceeded limit: {latency:.3f}s"
                 )
             if not snapshots:
                 raise MarketDataHealthError("market data returned no snapshots")
+            seen = set()
+            for snapshot in snapshots:
+                if not isinstance(snapshot, MarketSnapshot) or not snapshot.symbol or snapshot.symbol in seen:
+                    raise MarketDataHealthError("invalid or duplicate market symbol")
+                seen.add(snapshot.symbol)
+                if any(isinstance(v, bool) or not isinstance(v, (float, int)) or not math.isfinite(v)
+                       for v in (snapshot.price, snapshot.change_1h_pct, snapshot.volatility_pct)):
+                    raise MarketDataHealthError("non-finite market observation")
+                if snapshot.price <= 0 or snapshot.volatility_pct < 0 or snapshot.change_1h_pct < -100:
+                    raise MarketDataHealthError("invalid market observation bounds")
             source_timestamp = self._validate_source_timestamps(snapshots)
         except Exception as exc:
             self.consecutive_failures += 1
             self.last_failure_at = self.now()
-            self.last_error = f"{type(exc).__name__}: {exc}"
+            # Provider exceptions may contain credential URLs or response bodies.
+            self.last_error = str(exc) if isinstance(exc, MarketDataHealthError) else type(exc).__name__
             raise MarketDataHealthError(self.last_error) from exc
 
         self.consecutive_failures = 0

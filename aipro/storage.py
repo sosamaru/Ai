@@ -69,6 +69,31 @@ class Storage:
                 (key, value),
             )
 
+    def has_paper_history(self) -> bool:
+        with self._connect() as conn:
+            return bool(conn.execute(
+                "SELECT 1 FROM events WHERE event_type LIKE 'paper_%' LIMIT 1"
+            ).fetchone() or conn.execute("SELECT 1 FROM paper_order_archive LIMIT 1").fetchone())
+
+    def commit_paper_account(self, expected: str | None, value: str,
+                             event_type: str, payload: str) -> None:
+        """Atomically persist state and its audit, rejecting stale process writers."""
+        with self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            row = conn.execute("SELECT value FROM application_state WHERE key='paper_account'").fetchone()
+            if (None if row is None else row[0]) != expected:
+                raise RuntimeError("paper account changed; reload and reconcile before retry")
+            conn.execute("INSERT INTO application_state(key,value) VALUES('paper_account',?) "
+                         "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP", (value,))
+            conn.execute("INSERT INTO events(event_type,payload) VALUES(?,?)", (event_type, payload))
+
+    def set_states(self, values: dict[str, str]) -> None:
+        with self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            conn.executemany("INSERT INTO application_state(key,value) VALUES(?,?) "
+                             "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP",
+                             tuple(values.items()))
+
     def archive_paper_order(self, client_order_id: str, payload: str) -> None:
         """Insert one immutable order snapshot into the archive.
 

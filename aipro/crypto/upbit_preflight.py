@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Any
 from urllib import request
 from urllib.parse import urlencode
+from aipro.core.secure_http import open_credentialed, read_bounded
 
 
 def _b64url(data: bytes) -> str:
@@ -98,8 +99,8 @@ class UpbitOrderPreflightClient:
                 "Accept": "application/json",
             },
         )
-        with request.urlopen(req, timeout=self.timeout_sec) as response:
-            result = json.loads(response.read().decode("utf-8"))
+        with open_credentialed(req, timeout=self.timeout_sec) as response:
+            result = json.loads(read_bounded(response).decode("utf-8"))
         if not isinstance(result, dict):
             raise RuntimeError("invalid Upbit test-order response")
         return result

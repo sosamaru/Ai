@@ -33,6 +33,10 @@ INTEGRATION_TEST_PATHS = (
     "tests/test_us_dual_portfolio.py",
     "tests/test_us_model_pipeline.py",
     "tests/test_runtime_audit.py",
+    "tests/test_adaptive_model_pipeline.py",
+    "tests/test_adaptive_runtime.py",
+    "tests/test_survival_controls.py",
+    "tests/test_market_capture.py",
 )
 
 
@@ -194,6 +198,11 @@ def _safe_runtime_env(extra: Mapping[str, str] | None = None) -> dict[str, str]:
             "AIPRO_TELEGRAM_ALLOWED_CHAT_IDS": "",
             "AIPRO_US_MODEL_PATH": "",
             "AIPRO_US_MODEL_SHA256": "",
+            "AIPRO_US_ENSEMBLE_PATH": "",
+            "AIPRO_US_ENSEMBLE_SHA256": "",
+            "AIPRO_US_COHORT_PATH": "",
+            "AIPRO_US_COHORT_SHA256": "",
+            "AIPRO_US_TRAINING_ARCHIVE": "",
         }
     )
     if extra:
@@ -348,19 +357,45 @@ def build_parser() -> argparse.ArgumentParser:
     trainer.add_argument("--symbol", required=True)
     trainer.add_argument("--output-dir", type=Path, required=True)
     trainer.add_argument("--horizon-seconds", type=int, default=300)
+    trainer.add_argument("--experiment-id", required=True)
+    trainer.add_argument("--ledger", type=Path, default=Path("data/research_experiments.sqlite3"))
+    trainer.add_argument("--calibration", choices=("sigmoid", "isotonic", "none"), default="sigmoid")
     inspector = subparsers.add_parser("model-inspect", help="JSON 모델의 출처·검증·적용 범위를 확인")
     inspector.add_argument("input", type=Path)
+    retrainer = subparsers.add_parser("model-retrain-worker", help="자동 등록된 후보 학습 작업 하나를 별도 프로세스에서 처리")
+    retrainer.add_argument("--queue", type=Path, required=True)
+    exporter = subparsers.add_parser("market-export", help="기록된 실제 시점의 프레임을 동일 재생/학습 형식으로 내보냅니다.")
+    exporter.add_argument("archive", type=Path)
+    exporter.add_argument("--output", type=Path, required=True)
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command == "market-export":
+        from aipro.us_stocks.market_capture import FrameArchive
+        try:
+            if not args.archive.is_file():
+                raise ValueError("capture archive does not exist")
+            count = FrameArchive(args.archive).export(args.output)
+            print(f"Exported {count} prospective frames; provider identity and LIVE readiness not established")
+            return 0 if count else 1
+        except (OSError, ValueError) as exc:
+            print(f"[FAIL] market export: {type(exc).__name__}")
+            return 1
+    if args.command == "model-retrain-worker":
+        import json
+        from aipro.research.retraining_queue import RetrainingQueue
+        result = RetrainingQueue(args.queue).run_next()
+        print(json.dumps(result, ensure_ascii=False))
+        return 1 if result["phase"] == "FAILED" else 0
     if args.command in {"model-train", "model-inspect"}:
         try:
             if args.command == "model-train":
                 from aipro.us_stocks.model_training import train_from_archive
                 return train_from_archive(args.input, symbol=args.symbol, output_dir=args.output_dir,
-                                          horizon_seconds=args.horizon_seconds)
+                                          horizon_seconds=args.horizon_seconds, experiment_id=args.experiment_id,
+                                          ledger_path=args.ledger, calibration_method=None if args.calibration == "none" else args.calibration)
             import json
             from aipro.us_stocks.model_artifact import load_artifact
             artifact = load_artifact(args.input)

@@ -1,6 +1,65 @@
 # AiPro Project Roadmap
 
-Updated: 2026-09-14
+Updated: 2026-09-21
+
+## Survival-first full-system audit (2026-09-20)
+
+Current authoritative scope: the owner's 0–54 requirements and operational
+Backtest → PAPER → Shadow → small LIVE → limited LIVE objective. Historical
+100% claims below apply only to their named construction scopes.
+
+Latest GitHub main `6be27da5e8ba64d3f1ae162855b05c06f063c3bb` and PR #75 head
+`1e921fecc4f5f9dbd4d3b0d9c470297e046288ee` were checked before editing.
+Clean remote-head baseline: **534 passed**. Existing uncommitted adaptive work:
+**592 passed / 1 failed**. Original work is preserved separately.
+
+Pre-change implementation: **22/40 (55.0%)** on the explicitly defined 20-area,
+0–2 software rubric in [the current audit](docs/SURVIVAL_FIRST_AUDIT_20260920.md).
+Validated real-market models: **0 confirmed**. Actual qualifying PAPER evidence:
+**0/30 days supplied**. LIVE readiness: **BLOCKED**.
+
+P0 identified: corrupt crypto account silently resets funds; reconciliation is
+not enforced before crypto orders; truthy nonboolean LIVE evidence is accepted;
+snapshot numerical/completeness checks are incomplete; statistical rejection is
+not included in the uncommitted model's acceptance; post-exit risk needs immediate
+reevaluation; credentialed HTTP boundaries and restart state need hardening.
+
+The audit records architecture, per-domain capabilities, leakage/overfitting risks,
+reusable code, missing modules, technical debt and P0–P3 acceptance criteria.
+The eight identified P0 defect groups are repaired and regression-tested. Local
+`python -m aipro all` passed diagnosis, compilation, canonical PAPER smoke,
+**158 integration tests and 619 full regression tests**, warnings treated as errors
+(Python 3.12.14). Baseline was 534; prior adaptive work was incorporated and repaired.
+
+Current software rubric: **24/40 = 60.0%**; calibration and Risk Guardian each
+advance from 1 to 2 based on canonical wiring and tests. Other areas retain their
+pre-change scores because integration/evidence gaps remain. This is not a LIVE
+readiness percentage. Completed: atomic crypto state/audit and stale-writer block;
+reconciliation and finite/missing-quote gates; strict LIVE flags and explicit
+PAPER-only runtime; post-exit risk check; bounded credentialed HTTP; calibrated v3
+acceptance; experiment/holdout ledger; bounded adaptive monitoring; prospective
+US capture; model horizon exits and decision audit; paired Shadow promotion gate.
+
+Remaining defects/risks: crypto simulated fills still omit execution costs;
+US_DUAL is file-fed and has no real USD broker reconciliation/corporate actions;
+markout quality does not prove portfolio alpha; uncalibrated ensemble entries
+are blocked; Shadow cost-stress evidence is absent, so automatic promotion stays
+blocked. Local SQLite/hash integrity is not provider authentication or independent
+custody/audit. Multiple legacy registries/backtest paths remain technical debt.
+
+Backtest: software and synthetic replay tested; no positive real OOS portfolio
+expectancy established. PAPER: canonical local simulator and prospective archive
+connected, no supplied qualifying operational history. Shadow: isolated books and
+paired comparison implemented, no qualifying real observations or promotion.
+Live: BLOCKED, no real order adapter activated. Next priorities: P1 real PIT data
+and normal/stress/extreme portfolio replay; authenticated provider/USD broker
+PAPER integration and reconciliation; qualifying PAPER/Shadow observation. P2
+cross-sectional/model-family comparisons and registry consolidation. P3 small and
+limited LIVE only after evidence, recovery drills and explicit authorization.
+See [the current runbook](docs/SURVIVAL_RUNTIME_20260921.md).
+Real broker integration, corporate actions, actual market validation and elapsed
+PAPER/Shadow remain incomplete.
+No LIVE activation, owner funding increase or unconditional model promotion is authorized.
 
 ## Current audit and model-runtime requirement (2026-09-14)
 

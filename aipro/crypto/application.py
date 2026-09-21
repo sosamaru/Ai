@@ -31,6 +31,9 @@ class CryptoTradingApplication(LegacyTradingApplication):
         date_provider: Callable[[], date] | None = None,
     ) -> None:
         self.settings = settings
+        settings.validate()
+        if settings.mode != "PAPER":
+            raise RuntimeError("LIVE execution adapter is not implemented; operating runtime must remain PAPER")
         self.storage = Storage(settings.db_path)
         self._market_gate_lock = RLock()
         if settings.market_data_provider == "UPBIT":
@@ -84,10 +87,18 @@ class CryptoTradingApplication(LegacyTradingApplication):
         result["market_data"] = self.market_health.health_status()
         return result
 
+    def resume(self) -> None:
+        self._call_with_health_gate(super().resume)
+
     def run_once(self) -> None:
         try:
             self._call_with_health_gate(super().run_once)
         except MarketDataHealthError as exc:
+            failures = int(self.storage.get_state("crypto.source_failures") or "0") + 1
+            self.storage.set_state("crypto.source_failures", str(failures))
+            if failures >= self.settings.market_data_max_consecutive_failures:
+                self.risk.halt()
+                self._persist_halted(True)
             cycle_id = self.storage.get_state(ACTIVE_CYCLE_STATE_KEY)
             if cycle_id:
                 self.storage.set_state(ACTIVE_CYCLE_STATE_KEY, "")
@@ -103,6 +114,8 @@ class CryptoTradingApplication(LegacyTradingApplication):
                     ),
                 )
             raise
+        else:
+            self.storage.set_state("crypto.source_failures", "0")
 
 
 TradingApplication = CryptoTradingApplication
