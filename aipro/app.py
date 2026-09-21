@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 from collections.abc import Callable
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from zoneinfo import ZoneInfo
 
 from aipro.broker import PaperBroker
@@ -14,6 +15,8 @@ from aipro.reconciliation import ReconciliationReport, reconcile_paper_account
 from aipro.risk import RiskManager
 from aipro.storage import Storage
 from aipro.strategy import MomentumStrategy
+from aipro.core.adaptive_risk import CoreRiskPolicy, RiskMode, entry_budget
+from aipro.core.runtime_monitor import observe, record_outcome, resume_monitor
 
 LOGGER = logging.getLogger(__name__)
 KST = ZoneInfo("Asia/Seoul")
@@ -28,12 +31,49 @@ LEGACY_BASELINE_EQUITY_STATE_KEY = "baseline_equity"
 
 
 class TradingApplication:
+    def _monitor_policy(self) -> CoreRiskPolicy:
+        return CoreRiskPolicy(max_position=self.settings.max_symbol_exposure_pct,
+                              max_exposure=self.settings.max_portfolio_exposure_pct)
+
+    def _monitor(self) -> dict:
+        return json.loads(self.storage.get_state("crypto.adaptive_monitor") or "{}")
+
+    def _save_monitor(self, state: dict) -> None:
+        self.storage.set_state("crypto.adaptive_monitor", json.dumps(state, allow_nan=False))
+
+    def _observe_exit(self, order_id: str, proceeds: float, cost: float) -> None:
+        if cost > 0:
+            self._save_monitor(record_outcome(self._monitor(), trade_id=order_id, net_return=proceeds / cost - 1))
+
+    def _ensure_reconciled(self) -> None:
+        try:
+            valid = self.reconcile().is_consistent
+        except (ValueError, RuntimeError, TypeError):
+            valid = False
+        if not valid:
+            self.risk.halt()
+            self._persist_halted(True)
+            self.storage.record("reconciliation_blocked", '{"asset_class":"crypto"}')
+            raise RuntimeError("crypto reconciliation failed; all orders blocked")
+
+    def _valuation_prices(self, snapshots) -> dict[str, float]:
+        from aipro.crypto.market_health import MarketDataHealthError
+        prices = {item.symbol: item.price for item in snapshots}
+        if len(prices) != len(snapshots) or not prices or self.broker.positions.keys() - prices.keys():
+            raise MarketDataHealthError("duplicate symbols or missing held-position market quote")
+        if any(isinstance(v, bool) or not math.isfinite(v) or v <= 0 for v in prices.values()):
+            raise MarketDataHealthError("invalid valuation price")
+        return prices
+
     def __init__(
         self,
         settings: Settings,
         date_provider: Callable[[], date] | None = None,
     ) -> None:
         self.settings = settings
+        settings.validate()
+        if settings.mode != "PAPER":
+            raise RuntimeError("LIVE execution adapter is not implemented; operating runtime must remain PAPER")
         self.storage = Storage(settings.db_path)
         self.market = DemoMarketData()
         self.strategy = MomentumStrategy()
@@ -89,16 +129,17 @@ class TradingApplication:
         try:
             baseline = float(stored)
         except ValueError:
-            LOGGER.error("Invalid persisted crypto baseline; restoring initial cash baseline")
-            return float(self.settings.initial_cash_krw)
-        return baseline if baseline > 0 else float(self.settings.initial_cash_krw)
+            raise RuntimeError("invalid persisted crypto baseline; explicit recovery required") from None
+        if not math.isfinite(baseline) or baseline <= 0:
+            raise RuntimeError("invalid persisted crypto baseline; explicit recovery required")
+        return baseline
 
     def _persist_daily_baseline(self, trading_date: str, equity: float) -> None:
-        if equity <= 0:
+        if not math.isfinite(equity) or equity <= 0:
             raise ValueError("crypto daily baseline must be positive")
+        self.storage.set_states({CRYPTO_TRADING_DATE_STATE_KEY: trading_date,
+                                 CRYPTO_BASELINE_EQUITY_STATE_KEY: str(equity)})
         self.baseline_equity = equity
-        self.storage.set_state(CRYPTO_TRADING_DATE_STATE_KEY, trading_date)
-        self.storage.set_state(CRYPTO_BASELINE_EQUITY_STATE_KEY, str(equity))
         self.storage.record(
             "crypto_baseline_reset",
             json.dumps(
@@ -195,7 +236,7 @@ class TradingApplication:
 
     def status(self) -> dict[str, object]:
         snapshots = self.market.snapshots()
-        prices = {item.symbol: item.price for item in snapshots}
+        prices = self._valuation_prices(snapshots)
         equity = self.broker.equity(prices)
         self._sync_daily_baseline(equity)
         daily_return_pct = (equity / self.baseline_equity - 1) * 100
@@ -214,12 +255,18 @@ class TradingApplication:
             "cycle_sequence": self._load_cycle_sequence(),
             "reconciliation_ok": reconciliation.is_consistent,
             "reconciliation_issue_count": len(reconciliation.issues),
+            "adaptive_risk": self._monitor().get("health", {}),
+            "performance_evidence": "legacy_crypto_simulator_excludes_execution_costs",
         }
 
     def resume(self) -> None:
+        self._ensure_reconciled()
         snapshots = self.market.snapshots()
-        prices = {item.symbol: item.price for item in snapshots}
+        prices = self._valuation_prices(snapshots)
         equity = self.broker.equity(prices)
+        monitor = self._monitor()
+        if monitor.get("health", {}).get("mode") in {RiskMode.HALTED.value, RiskMode.PAPER_ONLY.value}:
+            self._save_monitor(resume_monitor(monitor, self._monitor_policy()))
         self.risk.resume()
         self._persist_halted(False)
         self._persist_daily_baseline(self._today(), equity)
@@ -227,13 +274,22 @@ class TradingApplication:
         LOGGER.warning("Crypto trading resumed explicitly with a new daily baseline")
 
     def run_once(self) -> None:
+        self._ensure_reconciled()
         cycle_id = self._begin_cycle()
         snapshots = self.market.snapshots()
-        prices = {item.symbol: item.price for item in snapshots}
+        prices = self._valuation_prices(snapshots)
         equity = self.broker.equity(prices)
         self._sync_daily_baseline(equity)
 
         daily_return_pct = (equity / self.baseline_equity - 1) * 100
+        monitor = observe(self._monitor(), observation_id=cycle_id, at=datetime.now(UTC).isoformat(),
+                          equity=equity, initial_equity=float(self.settings.initial_cash_krw),
+                          policy=self._monitor_policy(),
+                          abnormal=any(item.change_1h_pct <= -15 and item.volatility_pct >= 8 for item in snapshots))
+        self._save_monitor(monitor)
+        if monitor["health"]["mode"] == RiskMode.HALTED.value:
+            self.risk.halt()
+            self._persist_halted(True)
         was_halted = self.risk.halted
         if self.risk.evaluate(daily_return_pct):
             for symbol in list(self.broker.positions):
@@ -241,11 +297,14 @@ class TradingApplication:
                 if price is None:
                     LOGGER.error("Cannot liquidate %s: current price unavailable", symbol)
                     continue
-                self.broker.submit_sell_all(
+                position = self.broker.positions[symbol]
+                cost = position.quantity * position.average_price
+                order = self.broker.submit_sell_all(
                     self._order_id(cycle_id, "liquidate", symbol),
                     symbol,
                     price,
                 )
+                self._observe_exit(order.client_order_id, order.amount_krw, cost)
             self._persist_halted(True)
             LOGGER.critical("HALTED: daily loss limit reached or latch already active")
             if not was_halted:
@@ -278,6 +337,13 @@ class TradingApplication:
                 ),
             )
             if decision.signal is Signal.BUY:
+                monitor = observe(self._monitor(), observation_id=cycle_id + ":entry:" + snapshot.symbol,
+                    at=datetime.now(UTC).isoformat(), equity=self.broker.equity(prices),
+                    initial_equity=float(self.settings.initial_cash_krw), policy=self._monitor_policy())
+                self._save_monitor(monitor)
+                if monitor["health"]["mode"] == RiskMode.HALTED.value:
+                    self.risk.halt()
+                    self._persist_halted(True)
                 is_new_position = snapshot.symbol not in self.broker.positions
                 if is_new_position and len(self.broker.positions) >= self.settings.max_positions:
                     continue
@@ -286,6 +352,15 @@ class TradingApplication:
                     self.settings.max_position_pct,
                     self.settings.min_order_krw,
                 )
+                amount = min(amount, self.settings.max_order_krw)
+                current = self.broker.positions.get(snapshot.symbol)
+                amount = int(entry_budget(policy=self._monitor_policy(), state=monitor["health"],
+                    equity=self.broker.equity(prices), proposed=float(amount),
+                    current_symbol=current.quantity * snapshot.price if current else 0.0,
+                    current_exposure=sum(p.quantity * prices.get(s, p.average_price) for s, p in self.broker.positions.items()),
+                    spread_bps=0.0, slippage_bps=0.0, liquid_notional=float(amount)))
+                if amount < self.settings.min_order_krw:
+                    amount = 0
                 if amount:
                     self.broker.submit_buy(
                         self._order_id(cycle_id, "buy", snapshot.symbol),
@@ -294,11 +369,14 @@ class TradingApplication:
                         amount,
                     )
             elif decision.signal is Signal.SELL:
-                self.broker.submit_sell_all(
+                position = self.broker.positions.get(snapshot.symbol)
+                cost = position.quantity * position.average_price if position else 0.0
+                order = self.broker.submit_sell_all(
                     self._order_id(cycle_id, "sell", snapshot.symbol),
                     snapshot.symbol,
                     snapshot.price,
                 )
+                self._observe_exit(order.client_order_id, order.amount_krw, cost)
 
         LOGGER.info(
             "cycle complete id=%s mode=%s cash=%.0f equity=%.0f positions=%d",

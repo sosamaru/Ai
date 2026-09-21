@@ -307,7 +307,8 @@ def test_optional_forecast_uses_existing_cost_aware_ev_pipeline(tmp_path, probab
     from aipro.intelligence.paper_strategy_validation import ForecastEvidence
     class FixedTestForecast:
         def forecast(self, quote, feature_fingerprint):
-            return ForecastEvidence(probability, 0.04, 0.03, 0.1, "TEST_ONLY_FORECAST", feature_fingerprint)
+            return ForecastEvidence(probability, 0.04, 0.03, 0.1, "TEST_ONLY_FORECAST", feature_fingerprint,
+                                    probability_calibrated=True)
     app, now = application(tmp_path)
     app.forecaster = FixedTestForecast()
     result = cycle(app, now)

@@ -15,6 +15,7 @@ from typing import Any, Protocol
 from urllib.error import HTTPError, URLError
 from urllib.parse import unquote, urlencode
 from urllib.request import Request, urlopen
+from aipro.core.secure_http import open_credentialed, read_bounded
 
 UPBIT_EXCHANGE_API_BASE_URL = "https://api.upbit.com"
 _READ_ONLY_PATHS = frozenset({"/v1/accounts", "/v1/order", "/v1/orders/open", "/v1/orders/closed"})
@@ -121,13 +122,13 @@ class UpbitReadOnlyAccountClient:
     timeout_sec: float = 5.0
     max_attempts: int = 3
     backoff_sec: float = 0.25
-    opener: OpenUrl = urlopen
+    opener: OpenUrl = open_credentialed
     sleep: Sleep = time.sleep
     nonce_factory: NonceFactory = lambda: str(uuid.uuid4())
 
     def __post_init__(self) -> None:
-        if not self.base_url.startswith("https://"):
-            raise ValueError("Upbit account base_url must use HTTPS")
+        if self.base_url.rstrip("/") != UPBIT_EXCHANGE_API_BASE_URL:
+            raise ValueError("Upbit account base_url must use the official HTTPS origin")
         if self.timeout_sec <= 0:
             raise ValueError("timeout_sec must be positive")
         if not 1 <= self.max_attempts <= 5:
@@ -192,7 +193,7 @@ class UpbitReadOnlyAccountClient:
             )
             try:
                 with self.opener(request, timeout=self.timeout_sec) as response:
-                    raw = response.read()
+                    raw = read_bounded(response)
                 return json.loads(raw.decode("utf-8"))
             except HTTPError as exc:
                 last_error = exc
@@ -219,10 +220,10 @@ class UpbitReadOnlyAccountClient:
     @staticmethod
     def _error_name(exc: HTTPError) -> str:
         try:
-            payload = json.loads(exc.read().decode("utf-8"))
+            payload = json.loads(read_bounded(exc, 65536).decode("utf-8"))
             error = payload.get("error", {}) if isinstance(payload, dict) else {}
             return str(error.get("name", ""))
-        except (UnicodeDecodeError, json.JSONDecodeError, AttributeError):
+        except (UnicodeDecodeError, ValueError, AttributeError):
             return ""
 
     @staticmethod

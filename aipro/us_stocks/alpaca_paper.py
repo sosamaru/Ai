@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import json
 import os
+import math
 from dataclasses import dataclass
 from typing import Any
 from urllib import parse, request
+from aipro.core.secure_http import open_credentialed, read_bounded
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +56,8 @@ class AlpacaPaperClient:
             raise ValueError("AlpacaPaperClient accepts only the official PAPER domain")
         if not key_id.strip() or not secret_key.strip():
             raise ValueError("Alpaca PAPER credentials are required")
+        if not math.isfinite(timeout_sec) or not 0 < timeout_sec <= 60:
+            raise ValueError("bounded finite Alpaca timeout required")
         self.key_id = key_id.strip()
         self.secret_key = secret_key.strip()
         self.base_url = normalized
@@ -64,6 +68,10 @@ class AlpacaPaperClient:
         return cls(key_id=os.environ["APCA_PAPER_API_KEY_ID"], secret_key=os.environ["APCA_PAPER_API_SECRET_KEY"])
 
     def _request(self, method: str, path: str, payload: dict[str, Any] | None = None, query: dict[str, str] | None = None) -> Any:
+        if self.base_url != self.PAPER_BASE_URL:
+            raise ValueError("Alpaca PAPER origin changed")
+        if method not in {"GET", "POST"} or not path.startswith("/v2/") or "?" in path or "#" in path:
+            raise ValueError("invalid Alpaca request boundary")
         url = f"{self.base_url}{path}"
         if query:
             url = f"{url}?{parse.urlencode(query)}"
@@ -74,8 +82,8 @@ class AlpacaPaperClient:
             "Content-Type": "application/json",
             "Accept": "application/json",
         })
-        with request.urlopen(req, timeout=self.timeout_sec) as response:
-            raw = response.read().decode("utf-8")
+        with open_credentialed(req, timeout=self.timeout_sec) as response:
+            raw = read_bounded(response).decode("utf-8")
             return json.loads(raw) if raw else None
 
     def get_account(self) -> dict[str, Any]:

@@ -45,8 +45,9 @@ def test_crypto_daily_baseline_resets_when_kst_date_changes(tmp_path: Path) -> N
     assert app.storage.get_state(CRYPTO_TRADING_DATE_STATE_KEY) == "2026-07-17"
     assert float(app.storage.get_state(CRYPTO_BASELINE_EQUITY_STATE_KEY) or 0) == 1_000_000
 
-    app.broker.cash_krw = 900_000
-    app.broker.positions.clear()
+    # Realize the loss through the ledger; direct balance mutation must now block.
+    price = app.broker.positions["KRW-BTC"].average_price * .75
+    app.broker.submit_sell_all("realized-test-loss", "KRW-BTC", price)
     current_date[0] = date(2026, 7, 18)
     app.run_once()
 

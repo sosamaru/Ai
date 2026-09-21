@@ -44,7 +44,7 @@ def test_market_failure_aborts_active_cycle(tmp_path) -> None:
     app = CryptoTradingApplication(Settings(db_path=tmp_path / "aipro.db"))
     app.market = FailingProvider()
 
-    with pytest.raises(MarketDataHealthError, match="provider unavailable"):
+    with pytest.raises(MarketDataHealthError, match="RuntimeError"):
         app.run_once()
 
     assert app.storage.get_state("active_cycle_id") == ""

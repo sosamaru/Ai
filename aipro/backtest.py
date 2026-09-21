@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from datetime import datetime
+import math
 from typing import Iterable, Protocol
 
 from aipro.models import MarketSnapshot, Signal
@@ -22,7 +23,7 @@ class BacktestBar:
     def __post_init__(self) -> None:
         if not self.symbol.strip():
             raise ValueError("symbol is required")
-        if self.price <= 0:
+        if not all(math.isfinite(v) for v in (self.price, self.change_1h_pct, self.volatility_pct)) or self.price <= 0:
             raise ValueError("price must be positive")
 
 
@@ -36,6 +37,8 @@ class BacktestConfig:
     slippage_bps: float = 10.0
 
     def __post_init__(self) -> None:
+        if not all(math.isfinite(v) for v in (self.initial_cash_krw, self.max_position_pct, self.min_order_krw, self.fee_rate, self.slippage_bps)):
+            raise ValueError("backtest settings must be finite")
         if self.initial_cash_krw <= 0:
             raise ValueError("initial_cash_krw must be positive")
         if self.max_positions < 1:
@@ -165,12 +168,12 @@ class BacktestEngine:
                         if quantity > 0:
                             existing = positions.get(bar.symbol)
                             if existing is None:
-                                positions[bar.symbol] = _Position(quantity, execution_price)
+                                positions[bar.symbol] = _Position(quantity, amount / quantity)
                             else:
                                 total_quantity = existing.quantity + quantity
                                 existing.average_cost = (
                                     existing.quantity * existing.average_cost
-                                    + quantity * execution_price
+                                    + amount
                                 ) / total_quantity
                                 existing.quantity = total_quantity
                             cash -= amount
@@ -221,7 +224,7 @@ class BacktestEngine:
 
         final_equity = equity_curve[-1][1]
         total_return = (final_equity / self.config.initial_cash_krw - 1) * 100
-        max_drawdown = self._max_drawdown_pct(equity_curve)
+        max_drawdown = self._max_drawdown_pct([(equity_curve[0][0], self.config.initial_cash_krw), *equity_curve])
         wins = sum(1 for pnl in closed_pnls if pnl > 0)
         win_rate = 0.0 if not closed_pnls else wins / len(closed_pnls) * 100
         average_exposure = sum(exposure_samples) / len(exposure_samples)

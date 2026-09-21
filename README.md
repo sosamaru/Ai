@@ -2,6 +2,22 @@
 
 Safe-by-default multi-asset automated-trading foundation.
 
+## Survival-first runtime hardening — 2026-09-21
+
+The canonical PAPER path now rejects corrupt account recovery, unreconciled state,
+invalid numerical inputs and uncalibrated model entries. Risk is rechecked after
+exits; model acceptance includes statistical rejection. Prospective US file-fed
+frames are archived before execution for shared-pipeline replay.
+
+Local verification: **619 regression tests and 158 integration tests passed**.
+This is software evidence, not profitability. Actual qualifying PAPER evidence
+remains **0/30 days supplied**, and LIVE remains blocked. Legacy v1/v2 model
+artifacts require retraining to calibrated v3 before serving. Ensemble trading
+and cohort promotion remain blocked where their mandatory evidence is missing.
+
+See [the audit and P0–P3 plan](docs/SURVIVAL_FIRST_AUDIT_20260920.md) and
+[the current PAPER/Shadow runbook](docs/SURVIVAL_RUNTIME_20260921.md).
+
 ## AI runtime audit and model pipeline — 2026-09-14
 
 The latest PR #75 work now includes a bounded CPU logistic-model training,
@@ -11,7 +27,7 @@ prediction instant, prior embargo rows are excluded from later training, and
 model failures cannot roll back required portfolio exits.
 
 ```bash
-python -m aipro model-train data/us_frames.jsonl --symbol AAPL --output-dir data/models/aapl
+python -m aipro model-train data/us_frames.jsonl --symbol AAPL --experiment-id aapl-v3-001 --output-dir data/models/aapl
 python -m aipro model-inspect data/models/aapl/model.json
 ```
 

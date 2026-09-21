@@ -83,7 +83,7 @@ def test_latency_limit_fails_closed() -> None:
 
 def test_failures_are_counted_and_success_resets_counter() -> None:
     market = HealthCheckedMarketData(provider_name="DEMO", delegate=FailingProvider())
-    with pytest.raises(MarketDataHealthError, match="network down"):
+    with pytest.raises(MarketDataHealthError, match="RuntimeError"):
         market.snapshots()
     assert market.consecutive_failures == 1
 

@@ -58,15 +58,23 @@ class ForecastEvidence:
     uncertainty: float
     model_id: str
     feature_fingerprint: str
+    probability_calibrated: bool = False
+    horizon_seconds: int | None = None
 
     def __post_init__(self) -> None:
+        if type(self.probability_calibrated) is not bool:
+            raise ValueError("calibration evidence flag must be boolean")
+        if self.horizon_seconds is not None and (type(self.horizon_seconds) is not int or not 60 <= self.horizon_seconds <= 3600):
+            raise ValueError("forecast horizon must be a bounded integer")
         for value in (self.win_probability, self.expected_gain_pct, self.expected_loss_pct, self.uncertainty):
             if isinstance(value, bool) or not math.isfinite(value):
                 raise ValueError("forecast values must be finite")
         if not 0 <= self.win_probability <= 1 or not 0 <= self.uncertainty <= 1:
             raise ValueError("forecast probability and uncertainty must be in [0, 1]")
-        if self.expected_gain_pct < 0 or self.expected_loss_pct < 0:
-            raise ValueError("forecast gain and loss magnitudes must be non-negative")
+        if self.expected_gain_pct < 0 or self.expected_loss_pct <= 0:
+            raise ValueError("forecast gain must be non-negative and loss strictly positive")
+        if not self.model_id or not self.feature_fingerprint:
+            raise ValueError("forecast model and feature identity required")
 
 
 @dataclass(frozen=True)

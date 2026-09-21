@@ -38,6 +38,11 @@ def evaluate_live_execution(inputs: LiveExecutionInputs, *, now_utc: datetime) -
     if now_utc.tzinfo is None:
         raise ValueError("now_utc must be timezone-aware")
 
+    invalid_flags = [name for name in inputs.__dataclass_fields__
+                     if name != "authorization_expires_at_utc" and type(getattr(inputs, name)) is not bool]
+    if invalid_flags:
+        return LiveExecutionDecision(False, tuple("INVALID_BOOLEAN:" + name for name in invalid_flags))
+
     checks = (
         (inputs.explicit_live_guard, "LIVE_GUARD_MISSING"),
         (inputs.authorization_active, "TWO_FACTOR_AUTHORIZATION_INACTIVE"),
